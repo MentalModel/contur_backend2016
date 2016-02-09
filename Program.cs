@@ -1,0 +1,143 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace HanabiMM
+{
+    public class Hint
+    {
+        public List<int>    pos;
+        public Rank         rank;
+        public Suit         suit;
+
+        public Hint(Rank rank, List<int> storedAtPositions)
+        {
+            this.rank   = rank;
+            pos         = storedAtPositions;
+        }
+
+        public Hint(Suit suit, List<int> storedAtPositions)
+        {
+            this.suit   = suit;
+            pos         = storedAtPositions;
+        }
+
+        public Hint()
+        {
+            rank = Rank.Zero;
+            suit = Suit.Red;
+            pos = new List<int>();
+        }
+    }
+
+    public abstract class AbstractAction
+    {
+        public Game game;
+        
+        public AbstractAction(Game newGame)
+        {
+            game = newGame;
+        }
+
+        abstract public bool Execute();
+    }
+
+    public class StartNewGameAction : AbstractAction
+    {
+        public string[] firstPlayerCards {get; set; }
+        public string[] secondPlayerCards { get; set; }
+        public string[] deckCards { get; set; }
+
+        public StartNewGameAction(Game game, string[] firstPlayerCards, 
+            string[] secondPlayerCards, string[] deckCards) : base(game)
+        {
+            this.firstPlayerCards = firstPlayerCards;
+            this.secondPlayerCards = secondPlayerCards;
+            this.deckCards = deckCards;
+        }
+
+        public override bool Execute()
+        {
+            return game.startNewGame(this);
+        }
+    }
+
+    public class PlayAction: AbstractAction
+    {
+        public int cardPositionInHand;
+
+        public PlayAction(Game game, int cardIndex) : base(game)
+        {
+            cardPositionInHand = cardIndex;
+        }
+
+        public override bool Execute()
+        {
+            return game.processPlay(this);
+        }
+    }
+
+    public class DropAction : AbstractAction
+    {
+        public int cardPositionInHand;
+
+        public DropAction(Game game, int cardIndex) : base(game)
+        {
+            int cardPositionInHand = cardIndex;
+        }
+
+        public override bool Execute()
+        {
+            return game.processDrop(this);
+        }
+    }
+
+    public class HintColorAction : AbstractAction
+    {
+        public Hint hint;
+
+        public HintColorAction(Game game, Hint newHint) : base(game)
+        {
+            hint = newHint;
+        }
+
+        public override bool Execute()
+        {
+            return game.processDrop(this); // !!!
+        }
+    }
+
+    public class HintRankAction : AbstractAction
+    {
+        public Hint hint;
+
+        public HintRankAction(Game game, Hint newHint) : base(game)
+        {
+            hint = newHint;
+        }
+
+        public override bool Execute()
+        {
+            return game.processDrop(this); // !!!
+        }
+    }
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Game newGame = new Game(2, Console.Out);
+            newGame.Run();
+
+            // string[] ss = { "Start new game with deck R1 G2 B3 W4 Y5 R1 R1 B1 B2 W1 W2 W1", "Play card 0", "Drop card 4", "Tell color Red for cards 0 1 2 3 4", "Tell rank 1 for cards 2 4" };
+            // Parser parser = new Parser();
+            // foreach (string s in ss)
+            //    parser.parseInput(null, s);
+
+
+
+        }
+    }
+}
