@@ -5,7 +5,7 @@ namespace HanabiMM
 {
     public class Pile
     {
-        private List<Card> pile;
+        public List<Card> pile { get; set ; }
 
         public Pile()
         {

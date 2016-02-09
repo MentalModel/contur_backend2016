@@ -105,7 +105,7 @@ namespace HanabiMM
 
         public override bool Execute()
         {
-            return game.processDrop(this); // !!!
+            return game.processColorHint(this); 
         }
     }
 
@@ -120,7 +120,7 @@ namespace HanabiMM
 
         public override bool Execute()
         {
-            return game.processDrop(this); // !!!
+            return game.processRankHint(this); // !!!
         }
     }
 
@@ -130,14 +130,6 @@ namespace HanabiMM
         {
             Game newGame = new Game(2, Console.Out);
             newGame.Run();
-
-            // string[] ss = { "Start new game with deck R1 G2 B3 W4 Y5 R1 R1 B1 B2 W1 W2 W1", "Play card 0", "Drop card 4", "Tell color Red for cards 0 1 2 3 4", "Tell rank 1 for cards 2 4" };
-            // Parser parser = new Parser();
-            // foreach (string s in ss)
-            //    parser.parseInput(null, s);
-
-
-
         }
     }
 }

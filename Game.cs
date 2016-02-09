@@ -246,76 +246,30 @@ namespace HanabiMM
 
         public bool processColorHint(AbstractAction abstractAction)
         {
-            currentIndexOfPlayer = nextPlayer();                        // подсказка для другого пользователя
-
-            var act = (HintColorAction)abstractAction;
-            var hint = act.hint;
-
-            List<Card> result = new List<Card>();
-            for (int i = 0; i < hint.pos.Count; ++i)
+            var act                 = (HintColorAction)abstractAction;
+            currentIndexOfPlayer    = nextPlayer();
+            var pile                = players[currentIndexOfPlayer].playPile.pile;
+            var color = pile.Where(w => w.suit == act.hint.suit).Select(w => pile.IndexOf(w)).ToList();
+            if (color.SequenceEqual(act.hint.pos))
             {
-                result.Add(new Card(hint.suit, Rank.Five, Holder.Player));   // rank неважен
+                Console.WriteLine("Yes ! Tell color !");
+                return true;
             }
-
-            CardSuitComparer cc = new CardSuitComparer();
-            var pile = players[currentIndexOfPlayer].playPile;
-            var cards = pile.getSuitCard(hint.suit);
-            bool isEq = true;
-            if (pile.getSize() != cards.Count)
-                isEq = false;
-            else
-            {
-                int i = 0;
-                foreach (Card c in cards)
-                    if (!cc.Equals(c, result[i++]))
-                    {
-                        isEq = false;
-                        break;
-                    }
-            }
-            if (!isEq)
-                return false;
-            foreach (int idx in hint.pos)
-                players[currentIndexOfPlayer].lookAtCardAtPosition(idx).openSuit();
-            Console.WriteLine("Yes ! Tell rank !");
-            return true;
+            return false;
         }
 
         public bool processRankHint(AbstractAction abstractAction)
         {
-            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;  // подсказка для другого пользователя
             var act = (HintRankAction)abstractAction;
-            var hint = act.hint;
-
-            List<Card> result = new List<Card>();
-            for (int i = 0; i < hint.pos.Count; ++i)
+            currentIndexOfPlayer = nextPlayer();
+            var pile = players[currentIndexOfPlayer].playPile.pile;
+            var color = pile.Where(w => w.rank == act.hint.rank).Select(w => pile.IndexOf(w)).ToList();
+            if (color.SequenceEqual(act.hint.pos))
             {
-                result.Add(new Card(Suit.Blue, hint.rank, Holder.Player));   // цвет неважен
+                Console.WriteLine("Yes ! Tell rank !");
+                return true;
             }
-
-            CardRankComparer cc = new CardRankComparer();
-            var pile = players[currentIndexOfPlayer].playPile;
-            var cards = pile.getRankCard(hint.rank);
-            bool isEq = true;
-            if (pile.getSize() != cards.Count)
-                isEq = false;
-            else
-            {
-                int i = 0;
-                foreach (Card c in cards)
-                    if (!cc.Equals(c, result[i++]))
-                    {
-                        isEq = false;
-                        break;
-                    }
-            }
-            if (!isEq)
-                return false;
-            foreach (int idx in hint.pos)
-                players[currentIndexOfPlayer].lookAtCardAtPosition(idx).openRank();
-            Console.WriteLine("Yes ! Tell rank !");
-
-            return true;
+            return false;
         }
 
         public void Run()
