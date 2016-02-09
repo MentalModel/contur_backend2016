@@ -121,8 +121,6 @@ namespace HanabiMM
 
 namespace HanabiMM
 {
-
-
     public class Converter
     {
         public Converter()
@@ -150,6 +148,7 @@ namespace HanabiMM
         public int currentIndexOfPlayer;
         public int risks;
         public int cards;
+        public int score = 0;
 
         public  const int CountCardsOnHand = 5; 
 
@@ -227,6 +226,7 @@ namespace HanabiMM
                 var card = deck.Draw();
                 players[currentIndexOfPlayer].addCard(card);
                 board.addCard(c);
+                score++;
                 return true;
             }
             Console.WriteLine("No ! Stop game !!!");
@@ -274,17 +274,15 @@ namespace HanabiMM
 
         public void Run()
         {
-
-
             string[] lines = System.IO.File.ReadAllLines(@"D:\projects\HanabiMM\input.txt");
             Parser parser = new Parser(this);
-            int turn = 0;
-            int score = 0;
+            int turn = -1;
             bool finished = false;
 
             foreach (string line in lines)
             {
                 //Console.WriteLine(line);
+                turn++;
                 Console.WriteLine("Turn: " + turn + ", Score: " + score + ", Finished: " + finished);
                 Console.WriteLine("  Current player: " + players[currentIndexOfPlayer].ToString());
                 Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
@@ -292,7 +290,7 @@ namespace HanabiMM
                 Console.WriteLine("---------------------------------------------");
                 parser.parseInput(line).Execute();
                 currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
-                turn++;
+                
             }
             finished = true;
 

@@ -23,7 +23,6 @@ namespace HanabiMM
             var card = cards[0];
             cards.RemoveAt(0);
             return card;
-            //return cards.FirstOrDefault(x => x.holder == Holder.Deck);
         }
 
         public void addCard(Card card)
@@ -46,38 +45,5 @@ namespace HanabiMM
         {
             cards.Reverse();
         }
-
-        /*
-        public int? StuckAt(int suit)
-        {
-            for (int n = NextPlay(suit); n <= Card.NUMBERS; n++)
-            {
-                Card need = new Card { Suit = suit, Number = n };
-                if (Down().CountSame(need) == need.Copies()) return n;
-            }
-            return null; // not stuck
-        }
-        public int NextPlay(int suit)
-        {
-            return all.Max(c => c.In == Card.Holder.BOARD && c.Suit == suit ? c.Number : 0) + 1;
-        }
-        public bool AllowPlay(Card n)
-        {
-            return NextPlay(n.Suit) == n.Number;
-        }
-        public IEnumerable<Card> Down()
-        {
-            return all.Where(c => c.In == Card.Holder.BOARD || c.In == Card.Holder.DISCARD);
-        }
-        public IEnumerable<Card> Board()
-        {
-            return all.Where(c => c.In == Card.Holder.BOARD);
-        }
-        */
     }
-
-
-
-
-
 }
