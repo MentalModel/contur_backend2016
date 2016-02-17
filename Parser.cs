@@ -10,11 +10,13 @@ namespace HanabiMM
     {
         public string[]     tokens;
         public Game         game;
-        public const int    STARTS_AT = 5; 
+        public const int    STARTS_AT = 5;
+        public Dictionary<string, Func<AbstractAction>> optionsInvoker;
 
         public Parser(Game newGame)
         {
-            game = newGame;
+            game            = newGame;
+            optionsInvoker  = createDictionaryOptions();
         }
 
         public AbstractAction parseStartNewGame()
@@ -67,25 +69,27 @@ namespace HanabiMM
             return new HintRankAction(game, newHint);
         }
 
+        public Dictionary<string, Func<AbstractAction>> createDictionaryOptions()
+        {
+            var dictionary = new Dictionary<string, Func<AbstractAction>>
+            {
+                { "Start",      parseStartNewGame},
+                { "Play",       parsePlay},
+                { "Drop",       parseDrop},
+                { "Tell color", parseColorHint},
+                { "Tell rank",  parseRankHint}
+            };
+            return dictionary;
+        }
+
         public AbstractAction parseInput(string stringToParse)
         {
-            tokens = stringToParse.Split(' ');
-            switch (tokens[0])
-            {
-                case "Start":
-                    return parseStartNewGame();
+            tokens          = stringToParse.Split(' ');
+            var optionType  = tokens[0].Equals("Tell") ? (tokens[0] + " " + tokens[1]) : tokens[0] ;
 
-                case "Play":
-                    return parsePlay();
+            if (optionsInvoker.ContainsKey(optionType))
+                return optionsInvoker[optionType].Invoke();
 
-                case "Drop":
-                    return parseDrop();
-
-                case "Tell":
-                    if (tokens[1] == "color")
-                        return parseColorHint();
-                    return parseRankHint();
-            }
             return null;
         }
     }
