@@ -192,37 +192,41 @@ namespace HanabiMM
 
         public int nextPlayer()
         {
-            return (currentIndexOfPlayer + 1) % 2;
+            return (currentIndexOfPlayer + 1) % players.Count;
         }
 
-        public bool startNewGame(AbstractAction action)
+     //   public Card getCurrentPlayerNthCard(int index)
+       // {
+
+       // }
+
+        public bool startNewGame(DataInfo action)
         {
-            var startGameAction = (StartNewGameAction)action;
+            var startGameAction = action;
             var cardConverter = new Converter();
        
             foreach (string value in startGameAction.deckCards)
                 deck.addCard(cardConverter.getCardFromString(value));
 
-            foreach (string value in startGameAction.firstPlayerCards)
+            foreach (string value in startGameAction.playerCards[0])
                 players[0].addCard(cardConverter.getCardFromString(value));
 
-            foreach (string value in startGameAction.secondPlayerCards)
+            foreach (string value in startGameAction.playerCards[1])
                 players[1].addCard(cardConverter.getCardFromString(value));
 
             return true;
         }
 
-        public bool processPlay(AbstractAction abstractAction)
+        public bool processPlay(DataInfo action)
         {
-            var action = (PlayAction)abstractAction;
-            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionInHand);
+            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionsInHand[0]);
             cards++;
             if (board.cardCanPlay(c))
             {
                 if (!c.isKnownRank && !c.isKnownSuit)
                     risks++;
                 Console.WriteLine("Yes !");
-                players[currentIndexOfPlayer].playCard(action.cardPositionInHand);
+                players[currentIndexOfPlayer].playCard(action.cardPositionsInHand[0]);
                 var card = deck.Draw();
                 players[currentIndexOfPlayer].addCard(card);
                 board.addCard(c);
@@ -233,20 +237,20 @@ namespace HanabiMM
             return false;  
         }
 
-        public bool processDrop(AbstractAction abstractAction)
+        public bool processDrop(DataInfo abstractAction)
         {
-            var action = (DropAction)abstractAction;
-            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionInHand);
+            var action = abstractAction;
+            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionsInHand[0]);
             Console.WriteLine("Yes ! Drop it !");
-            players[currentIndexOfPlayer].playCard(action.cardPositionInHand);
+            players[currentIndexOfPlayer].playCard(action.cardPositionsInHand[0]);
             var card = deck.Draw();
             players[currentIndexOfPlayer].addCard(card);
             return true;
         }
 
-        public bool processColorHint(AbstractAction abstractAction)
+        public bool processColorHint(DataInfo abstractAction)
         {
-            var act                 = (HintColorAction)abstractAction;
+            var act                 = abstractAction;
             currentIndexOfPlayer    = nextPlayer();
             var pile                = players[currentIndexOfPlayer].playPile.pile;
             var color = pile.Where(w => w.suit == act.hint.suit).Select(w => pile.IndexOf(w)).ToList();
@@ -258,9 +262,9 @@ namespace HanabiMM
             return false;
         }
 
-        public bool processRankHint(AbstractAction abstractAction)
+        public bool processRankHint(DataInfo abstractAction)
         {
-            var act = (HintRankAction)abstractAction;
+            var act = abstractAction;
             currentIndexOfPlayer = nextPlayer();
             var pile = players[currentIndexOfPlayer].playPile.pile;
             var color = pile.Where(w => w.rank == act.hint.rank).Select(w => pile.IndexOf(w)).ToList();
@@ -274,11 +278,19 @@ namespace HanabiMM
 
         public void Run()
         {
+            
+
             string[] lines = System.IO.File.ReadAllLines(@"D:\projects\HanabiMM\input.txt");
-            Parser parser = new Parser(this);
+            Parser parser = new Parser();
             int turn = -1;
             bool finished = false;
 
+            //var reader = new Reader(parser, Console.In);
+            //var parsedInfo = reader.readFile();
+
+            //parsedInfo.ToArray();
+
+            
             foreach (string line in lines)
             {
                 //Console.WriteLine(line);
@@ -288,8 +300,27 @@ namespace HanabiMM
                 Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
                 Console.WriteLine("           Table: " + board);
                 Console.WriteLine("---------------------------------------------");
-                parser.parseInput(line).Execute();
-                currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+                var parsedInfo = parser.parse(line);
+                if (parsedInfo.action == ActionType.Play)
+                {
+                    this.processPlay(parsedInfo);
+                }
+                else if (parsedInfo.action == ActionType.Discard)
+                {
+                    this.processDrop(parsedInfo);
+                }
+                else if (parsedInfo.action == ActionType.Clue)
+                {
+                    if (parsedInfo.hint.rank != Rank.Zero)
+                    {
+                        this.processRankHint(parsedInfo);
+                    }
+                    else
+                        this.processColorHint(parsedInfo);
+                }
+                else
+                    this.startNewGame(parsedInfo);
+                    currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
                 
             }
             finished = true;

@@ -6,32 +6,8 @@ using System.Threading.Tasks;
 
 namespace HanabiMM
 {
-    public class Hint
-    {
-        public List<int>    pos;
-        public Rank         rank;
-        public Suit         suit;
 
-        public Hint(Rank rank, List<int> storedAtPositions)
-        {
-            this.rank   = rank;
-            pos         = storedAtPositions;
-        }
-
-        public Hint(Suit suit, List<int> storedAtPositions)
-        {
-            this.suit   = suit;
-            pos         = storedAtPositions;
-        }
-
-        public Hint()
-        {
-            rank = Rank.Zero;
-            suit = Suit.Red;
-            pos = new List<int>();
-        }
-    }
-
+    /*
     public abstract class AbstractAction
     {
         public Game game;
@@ -124,6 +100,7 @@ namespace HanabiMM
         }
     }
 
+    */
     class Program
     {
         static void Main(string[] args)
