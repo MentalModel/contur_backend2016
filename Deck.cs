@@ -25,6 +25,11 @@ namespace HanabiMM
             return card;
         }
 
+        public Card seeTop()
+        {
+            return cards[0];
+        }
+
         public void addCard(Card card)
         {
             cards.Add(card);
@@ -38,7 +43,12 @@ namespace HanabiMM
 
         public bool isEmpty()
         {
-            return cards.Count <= 1;
+            return cards.Count == 0;
+        }
+
+        public bool hasLastCard()
+        {
+            return cards.Count == 1;
         }
 
         public void reverse()

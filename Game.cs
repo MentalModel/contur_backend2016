@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HanabiMM
 {
@@ -45,6 +43,15 @@ namespace HanabiMM
         Three,
         Four,
         Five
+    }
+
+
+    public static class CardExtension
+    {
+        public static bool isKnownCard(this Card card)
+        {
+            return (card.isKnownRank) && (card.isKnownSuit);
+        }
     }
 
     public class Card
@@ -146,12 +153,26 @@ namespace HanabiMM
         public              int                     FinalTurns  { get; private set; }
         public Board board;
         public int currentIndexOfPlayer;
+        public int currentPlayer;
         public int risks;
         public int cards;
         public int score = 0;
+        public int turn = -1;
+        public bool finish = false;
+        public bool notFinished = true;
 
-        public  const int CountCardsOnHand = 5; 
+        public  const int CountCardsOnHand = 5;
+        private bool finished;
 
+        public Player getCurrentPlayer()
+        {
+            return players[currentIndexOfPlayer];
+        }
+
+        public Player getNextPlayer()
+        {
+            return players[nextPlayer()];
+        }
 
         private bool isEndOfTheGame()
         {
@@ -170,24 +191,8 @@ namespace HanabiMM
             deck        = new Deck();
             players     = Enumerable.Range(0, countPlayers).Select(i => new Player(i)).ToList();
             board = new Board();
-            currentIndexOfPlayer = 0;
+            currentIndexOfPlayer = 1;
             risks = 0;
-        }
-
-        private Card giveCardToPlayer()
-        {
-            Card draw = deck.Draw();
-            if (draw == null)
-            {
-                log.WriteLine("Deck empty...");
-                FinalTurns--;
-                return null;
-            }
-            else
-            {
-                draw.holder = Holder.Player;
-                return draw;
-            }
         }
 
         public int nextPlayer()
@@ -195,10 +200,11 @@ namespace HanabiMM
             return (currentIndexOfPlayer + 1) % players.Count;
         }
 
-     //   public Card getCurrentPlayerNthCard(int index)
-       // {
-
-       // }
+        public void checkRisks(Card card)
+        {
+            if (!card.isKnownCard())
+                ++risks;
+        }
 
         public bool startNewGame(DataInfo action)
         {
@@ -219,61 +225,79 @@ namespace HanabiMM
 
         public bool processPlay(DataInfo action)
         {
-            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionsInHand[0]);
-            cards++;
-            if (board.cardCanPlay(c))
+            var player = getCurrentPlayer();
+            var currentCard = player.playCard(action.cardPositionsInHand[0]);
+            if (board.cardCanPlay(currentCard))
             {
-                if (!c.isKnownRank && !c.isKnownSuit)
-                    risks++;
-                Console.WriteLine("Yes !");
-                players[currentIndexOfPlayer].playCard(action.cardPositionsInHand[0]);
-                var card = deck.Draw();
-                players[currentIndexOfPlayer].addCard(card);
-                board.addCard(c);
                 score++;
+                cards++;
+                if (deck.isEmpty())
+                    return false;
+                player.addCard(deck.Draw());
+                board.addCard(currentCard);
+                checkRisks(currentCard);
+                if (deck.isEmpty())
+                    return false;
                 return true;
             }
-            Console.WriteLine("No ! Stop game !!!");
             return false;  
         }
 
-        public bool processDrop(DataInfo abstractAction)
+        public bool processDrop(DataInfo action)
         {
-            var action = abstractAction;
-            Card c = players[currentIndexOfPlayer].lookAtCardAtPosition(action.cardPositionsInHand[0]);
-            Console.WriteLine("Yes ! Drop it !");
-            players[currentIndexOfPlayer].playCard(action.cardPositionsInHand[0]);
-            var card = deck.Draw();
-            players[currentIndexOfPlayer].addCard(card);
+            var player = getCurrentPlayer();
+            player.playCard(action.cardPositionsInHand[0]);
+            if (deck.isEmpty())
+                return false;
+            player.addCard(deck.Draw());
+            if (deck.isEmpty())
+                return false;
             return true;
         }
 
-        public bool processColorHint(DataInfo abstractAction)
+        public bool processColorHint(DataInfo act)
         {
-            var act                 = abstractAction;
-            currentIndexOfPlayer    = nextPlayer();
-            var pile                = players[currentIndexOfPlayer].playPile.pile;
-            var color = pile.Where(w => w.suit == act.hint.suit).Select(w => pile.IndexOf(w)).ToList();
+            var player = getNextPlayer();
+            var pile  = player.getPile().ToList();
+            var color = pile.Where(w => (w.suit == act.hint.suit)).Select(w => pile.IndexOf(w)).ToList();
             if (color.SequenceEqual(act.hint.pos))
             {
-                Console.WriteLine("Yes ! Tell color !");
+                // open card on user
+                foreach (var index in act.hint.pos)
+                    player.openNthSuit(index);
                 return true;
             }
             return false;
         }
 
-        public bool processRankHint(DataInfo abstractAction)
+        public bool processRankHint(DataInfo act)
         {
-            var act = abstractAction;
-            currentIndexOfPlayer = nextPlayer();
-            var pile = players[currentIndexOfPlayer].playPile.pile;
-            var color = pile.Where(w => w.rank == act.hint.rank).Select(w => pile.IndexOf(w)).ToList();
+            var player = getNextPlayer();
+            var pile = player.getPile().ToList();
+            var color = pile.Where(w => (w.rank == act.hint.rank)).Select(w => pile.IndexOf(w)).ToList();
             if (color.SequenceEqual(act.hint.pos))
             {
-                Console.WriteLine("Yes ! Tell rank !");
+                // open card on user
+                foreach (var index in act.hint.pos)
+                    player.openNthRank(index);
                 return true;
             }
             return false;
+        }
+
+
+        public void init()
+        {
+            turn = -1;
+            finished = false;
+            cards = 0;
+            score = 0;
+            risks = 0;
+            players.Clear();
+            players = Enumerable.Range(0, 2).Select(i => new Player(i)).ToList();
+            deck = new Deck();
+            board = new Board();
+            currentIndexOfPlayer = 1;
         }
 
         public void Run()
@@ -281,9 +305,7 @@ namespace HanabiMM
             
 
             string[] lines = System.IO.File.ReadAllLines(@"D:\projects\HanabiMM\input.txt");
-            Parser parser = new Parser();
-            int turn = -1;
-            bool finished = false;
+            Parser parser = new Parser(); 
 
             //var reader = new Reader(parser, Console.In);
             //var parsedInfo = reader.readFile();
@@ -295,43 +317,61 @@ namespace HanabiMM
             {
                 //Console.WriteLine(line);
                 turn++;
-                Console.WriteLine("Turn: " + turn + ", Score: " + score + ", Finished: " + finished);
-                Console.WriteLine("  Current player: " + players[currentIndexOfPlayer].ToString());
-                Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
-                Console.WriteLine("           Table: " + board);
-                Console.WriteLine("---------------------------------------------");
+
+                //Console.WriteLine("Turn: " + turn + ", Score: " + score + ", Finished: " + finished);
+                //Console.WriteLine("  Current player: " + players[currentIndexOfPlayer].ToString());
+                // Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
+                // Console.WriteLine("           Table: " + board);
+                //Console.WriteLine("---------------------------------------------");
+                if (finished)
+                    continue;
                 var parsedInfo = parser.parse(line);
                 if (parsedInfo.action == ActionType.Play)
                 {
-                    this.processPlay(parsedInfo);
+                    notFinished = this.processPlay(parsedInfo);
                 }
                 else if (parsedInfo.action == ActionType.Discard)
                 {
-                    this.processDrop(parsedInfo);
+                    notFinished = this.processDrop(parsedInfo);
                 }
                 else if (parsedInfo.action == ActionType.Clue)
                 {
                     if (parsedInfo.hint.rank != Rank.Zero)
                     {
-                        this.processRankHint(parsedInfo);
+                        notFinished = this.processRankHint(parsedInfo);
                     }
                     else
-                        this.processColorHint(parsedInfo);
+                        notFinished = this.processColorHint(parsedInfo);
                 }
                 else
-                    this.startNewGame(parsedInfo);
-                    currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+                {
+                    if (notFinished)
+                    {
+                       // Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
+                        init();
+                        turn++;
+                    }
+                    notFinished = this.startNewGame(parsedInfo);
+                }
+                currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+                finished = !notFinished;
+                if (finished)
+                {
+                    Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
+                    //Console.WriteLine("Turn: " + turn + ", Score: " + score + ", Finished: " + finished);
+                   // Console.WriteLine("  Current player: " + players[currentIndexOfPlayer].ToString());
+                   // Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
+                   // Console.WriteLine("           Table: " + board);
+                   // Console.WriteLine("---------------------------------------------");
+                    init();
+                }
                 
             }
             finished = true;
 
-            Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
-            Console.WriteLine("Turn: " + turn + ", Score: " + score + ", Finished: " + finished);
-            Console.WriteLine("  Current player: " + players[currentIndexOfPlayer].ToString());
-            Console.WriteLine("     Next player: " + players[(currentIndexOfPlayer + 1) % 2].ToString());
-            Console.WriteLine("           Table: " + board);
-            Console.WriteLine("---------------------------------------------");
+
         }
+
     }
 
 };

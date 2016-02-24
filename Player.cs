@@ -13,6 +13,11 @@ namespace HanabiMM
             playPile    = new Pile();
         }
 
+        public IEnumerable<Card> getPile()
+        {
+            return playPile.pile;
+        }
+
         public Card lookAtCardAtPosition(int position)
         {
             return playPile.getCardAtPosition(position);
@@ -43,6 +48,16 @@ namespace HanabiMM
         public int numCards()
         {
             return playPile.getSize();
+        }
+
+        public void openNthRank(int index)
+        {
+            playPile.pile[index].openRank();
+        }
+
+        public void openNthSuit(int index)
+        {
+            playPile.pile[index].openSuit();
         }
 
         public override string ToString()
