@@ -35,6 +35,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="nunit.framework, Version=3.0.5813.39032, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
+      <HintPath>packages\NUnit.3.0.1\lib\net40\nunit.framework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -53,7 +57,23 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="input.txt" />
+    <Content Include="in\in11.txt" />
+    <Content Include="in\in12.txt" />
+    <Content Include="in\in21.txt" />
+    <Content Include="in\in22.txt" />
+    <Content Include="in\inbig1.txt" />
+    <Content Include="in\inbig2.txt" />
+    <Content Include="out\out11.txt" />
+    <Content Include="out\out12.txt" />
+    <Content Include="out\out1big.txt" />
+    <Content Include="out\out21.txt" />
+    <Content Include="out\out22.txt" />
+    <Content Include="out\out2big.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSHARP.Targets" />
   <ProjectExtensions>
     <VisualStudio AllowExistingFolder="true" />

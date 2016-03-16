@@ -55,5 +55,10 @@ namespace HanabiMM
         {
             return pile.Select(x => x).Where(x => x.suit == suit).ToList();
         }
+
+        public List<Card> getAllCards()
+        {
+            return pile;
+        }
     }
 }

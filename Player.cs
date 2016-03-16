@@ -13,7 +13,7 @@ namespace HanabiMM
             playPile    = new Pile();
         }
 
-        public IEnumerable<Card> getPile()
+        public List<Card> getPile()
         {
             return playPile.pile;
         }

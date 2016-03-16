@@ -55,5 +55,10 @@ namespace HanabiMM
         {
             cards.Reverse();
         }
+
+        public List<Card> getCards()
+        {
+            return cards;
+        }
     }
 }

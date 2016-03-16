@@ -35,7 +35,6 @@ namespace HanabiMM
         }
     }
 
-
     public class Hint
     {
         public List<int> pos;
@@ -67,6 +66,7 @@ namespace HanabiMM
         public int[] cardPositionsInHand;
         public ActionType action;
         public Hint hint;
+        public string s;
 
         public List<string[]> playerCards { get; set; }
         public string[] deckCards { get; set; }
@@ -77,28 +77,32 @@ namespace HanabiMM
             cardPositionsInHand = null;
             action = ActionType.NoAction;
             hint = null;
+           
         }
 
-        public DataInfo(int[] i, ActionType a)
+        public DataInfo(int[] i, ActionType a, string s)
         {
             playerCards = new List<string[]>();
             cardPositionsInHand = i;
             action = a;
             hint = null;
+            this.s = s;
         }
 
-        public DataInfo(ActionType a, Hint h)
+        public DataInfo(ActionType a, Hint h, string s)
         {
             playerCards = new List<string[]>();
             cardPositionsInHand = null;
             action = a;
             hint = h;
+            this.s = s;
         }
 
-        public DataInfo(List<string[]> playerCards, string[] deckCards)
+        public DataInfo(List<string[]> playerCards, string[] deckCards, string s)
         {
             this.playerCards = playerCards;
             this.deckCards = deckCards;
+            this.s = s;
         }
     }
 
@@ -148,7 +152,7 @@ namespace HanabiMM
             string[] cards = new string[decksCardCount];
             Array.Copy(tokens, 15, cards, 0, decksCardCount);
 
-            return new DataInfo(new List<string[]> { firstPlayerCards, secondPlayerCards },  cards );
+            return new DataInfo(new List<string[]> { firstPlayerCards, secondPlayerCards },  cards, s );
         }
 
         public DataInfo parsePlay(string s)
@@ -156,7 +160,7 @@ namespace HanabiMM
             try
             {
                 var tokens = s.Split(' ');
-                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Play);
+                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Play, s);
             }
             catch (ArgumentException)
             {
@@ -169,7 +173,7 @@ namespace HanabiMM
             try
             {
                 var tokens = s.Split(' ');
-                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Discard);
+                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Discard, s);
             }
             catch (ArgumentException)
             {
@@ -184,7 +188,7 @@ namespace HanabiMM
             {
                 var tokens = s.Split(' ');
                 var color = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
-                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()));
+                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()), s);
             }
             catch (ArgumentException)
             {
@@ -199,7 +203,7 @@ namespace HanabiMM
             {
                 var tokens = s.Split(' ');
                 var color = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
-                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()));
+                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()), s);
             }
             catch (ArgumentException)
             {

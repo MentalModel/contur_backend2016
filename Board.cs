@@ -44,6 +44,15 @@ namespace HanabiMM
             return true;
         }
 
+        public bool similarRanks()
+        {
+            var rank = boardCards[0].Peek().rank;
+            foreach (Stack<Card> stack in boardCards)
+                if (stack.Peek().rank != rank)
+                    return false;
+            return true;
+        }
+
         public bool cardCanPlay(Card card)
         {
             int  suit    = Convert.ToUInt16(card.suit);
