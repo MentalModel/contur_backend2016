@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -48,9 +49,30 @@ namespace HanabiMM
 
     public static class CardExtension
     {
+        public static bool isKnownRank(this Card card)
+        {
+            var numberOfPossibleRanks = 0;
+            foreach (var v in card.rankBits)
+                if ((bool)v)
+                    numberOfPossibleRanks++;
+            //var numberOfPossibleRanks = card.rankBits.ToString().Select(w => w).Count(w => w.Equals(true));
+            return (numberOfPossibleRanks == 1);
+        }
+
+        public static bool isKnownColor(this Card card)
+        {
+            var numberOfPossibleSuits = 0;
+            foreach (var v in card.suitBits)
+                if ((bool)v)
+                    numberOfPossibleSuits++;
+            //var t = card.suitBits.ToString();
+            //var numberOfPossibleSuits = card.suitBits.ToString().Select(w => w).Count(w => w.Equals(true));
+            return (numberOfPossibleSuits == 1);
+        }
+
         public static bool isKnownCard(this Card card)
         {
-            return (card.isKnownRank) && (card.isKnownSuit);
+            return isKnownRank(card) && isKnownColor(card);
         }
     }
 
@@ -59,25 +81,48 @@ namespace HanabiMM
         public  Suit    suit        { get; set; }
         public  Rank    rank        { get; set; }
         public  Holder  holder      { get; set; }
-        public  bool    isKnownSuit { get; set; }
-        public  bool    isKnownRank { get; set; }
+        public BitArray suitBits           { get; set; }
+        public BitArray rankBits           { get; set; }
 
         public Card(Suit suit, Rank rank, Holder holder)
         {
             this.suit   = suit;
             this.rank   = rank;
             this.holder = holder;
-            isKnownSuit = isKnownRank = false;
+            suitBits = new BitArray(5, true);
+            rankBits = new BitArray(5, true);
         }
 
-        public void openSuit()
+        public void openSuit(Suit suitCard)
         {
-            isKnownSuit = true;
+            if (this.isKnownColor())
+                return;
+            suitBits.SetAll(false);
+            suitBits.Set((int)suitCard, true);
+            //isKnownSuit = true;
         }
 
-        public void openRank()
+        public void closeSuit(Suit suitCard)
         {
-            isKnownRank = true;
+            //suitBits.SetAll(false);
+            suitBits.Set((int)suitCard, false);
+            //isKnownSuit = true;
+        }
+
+        public void closeRank(Rank rankCard)
+        {
+            //suitBits.SetAll(false);
+            rankBits.Set((int)rankCard - 1, false);
+            //isKnownSuit = true;
+        }
+
+        public void openRank(Rank rankCard)
+        {
+            if (this.isKnownRank())
+                return;
+            rankBits.SetAll(false);
+            rankBits.Set((int)rankCard - 1, true);
+            //isKnownRank = true;
         }
 
         public override string ToString()
@@ -212,25 +257,64 @@ namespace HanabiMM
         {
             if (level == 1)
                 return;
+
+            var possibleColours = new List<int>();
+            if (card.isKnownColor())
+                possibleColours.Add((int)card.suit);
+            else
+            {
+                for (int i = 0; i < 5; ++i)
+                    if (card.suitBits[i])
+                        possibleColours.Add(i);
+            }
+            var possibleRanks= new List<int>();
+            if (card.isKnownRank())
+                possibleRanks.Add((int)card.rank);
+            else
+            { 
+                for (int i = 0; i < 5; ++i)
+                if (card.rankBits[i])
+                    possibleRanks.Add(i);
+            }
+            var query = possibleColours.SelectMany(x => possibleRanks, (x, y) => new { x, y});
+
+            var flag = true;
+            foreach (var t in query)
+                if (!board.cardCanPlay(new Card((Suit)t.x, (Rank)(t.y), Holder.Player)))
+                {
+                    flag = false;
+                    break;
+                }
+            if (!flag)
+            {
+                risks++;
+                return;
+            }
+            return;
+            //System.Console.Write(t + " ");
+            //  var a = new string[] { "R", "G", "B", "Y", "W" };
+            // var b = new string[] { "1", "2", "3", "4", "5" };
+
+
+            // string[] query = a.SelectMany(x => b, (x, y) => (x + y).ToString()).ToArray();
+            //foreach (var t in query)
+            //   System.Console.Write(t + " ");
+
+           // if (board.similarRanks() && board.boardCards[0].Peek().rank != Rank.Five)
+            //    return;
             // if (card.rank == Rank.One && board.boardCards[(int)card.rank].Peek().rank == Rank.Zero)
-            //  {
-            //       risks++;
-            //      return;
-            //   }
-            if (!card.isKnownRank || !card.isKnownSuit)
+           //   {
+                   //risks++;
+               //   return;
+               //}
+            if (!card.isKnownCard())
             {
                 ++risks;
                 return;
             }
-           // if (card.rank == Rank.One && board.boardCards[(int)card.rank].Peek().rank == Rank.Zero)
-          //  {
-         //       risks++;
-          //      return;
-         //   }
-           // if (board.similarRanks() && board.boardCards[0].Peek().rank != Rank.Five)
-            //    return;
-            if (!card.isKnownCard())
-                ++risks;
+   
+            //if (!card.isKnownCard())
+           //     ++risks;
         }
 
         public bool startNewGame(DataInfo action)
@@ -252,7 +336,8 @@ namespace HanabiMM
 
         public bool processPlay(DataInfo action)
         {
-            var player = getCurrentPlayer(); //getNextPlayer(); // 
+            var player = getCurrentPlayer(); //getNextPlayer(); //
+              
             var currentCard = player.playCard(action.cardPositionsInHand[0]);
             if (board.cardCanPlay(currentCard))
             {
@@ -287,12 +372,19 @@ namespace HanabiMM
         {
             var player = getNextPlayer();//getCurrentPlayer();// getNextPlayer(); getCurrentPlayer();//
             var pile  = player.getPile().ToList();
+
+
+
             var color = pile.Where(w => (w.suit == act.hint.suit)).Select(w => pile.IndexOf(w)).ToList();
             if (color.SequenceEqual(act.hint.pos))
             {
+
+                for(int i = 0; i < player.playPile.getSize(); ++i)
+                    player.closeNthSuit(i, act.hint.suit);
+
                 // open card on user
                 foreach (var index in act.hint.pos)
-                    player.openNthSuit(index);
+                    player.openNthSuit(index, act.hint.suit);
                 return true;
             }
             return false;
@@ -302,12 +394,18 @@ namespace HanabiMM
         {
             var player = getNextPlayer();//getNextPlayer(); //getCurrentPlayer();//getNextPlayer();
             var pile = player.getPile().ToList();
+
+
             var color = pile.Where(w => (w.rank == act.hint.rank)).Select(w => pile.IndexOf(w)).ToList();
             if (color.SequenceEqual(act.hint.pos))
             {
+
+                for (int i = 0; i < player.playPile.getSize(); ++i)
+                    player.closeNthRank(i, act.hint.rank);
+
                 // open card on user
                 foreach (var index in act.hint.pos)
-                    player.openNthRank(index);
+                    player.openNthRank(index, act.hint.rank);
                 return true;
             }
             return false;

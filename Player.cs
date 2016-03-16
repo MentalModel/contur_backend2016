@@ -50,14 +50,24 @@ namespace HanabiMM
             return playPile.getSize();
         }
 
-        public void openNthRank(int index)
+        public void openNthRank(int index, Rank rank)
         {
-            playPile.pile[index].openRank();
+            playPile.pile[index].openRank(rank);
         }
 
-        public void openNthSuit(int index)
+        public void closeNthRank(int index, Rank rank)
         {
-            playPile.pile[index].openSuit();
+            playPile.pile[index].closeRank(rank);
+        }
+
+        public void openNthSuit(int index, Suit suitCard)
+        {
+            playPile.pile[index].openSuit(suitCard);
+        }
+
+        public void closeNthSuit(int index, Suit suitCard)
+        {
+            playPile.pile[index].closeSuit(suitCard);
         }
 
         public override string ToString()
