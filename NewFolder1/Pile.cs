@@ -5,21 +5,21 @@ namespace HanabiMM
 {
     public class Pile
     {
-        private List<Card> pile;
+        private List<HeldCard> pile;
 
         public Pile()
         {
-            pile = new List<Card>();
+            pile = new List<HeldCard>();
         }
 
-        public void AddCard(Card newCard)
+        public void AddCard(HeldCard newCard)
         {
             pile.Add(newCard);
         }
 
-        public void AddCards(List<Card> newCards)
+        public void AddCards(List<HeldCard> newCards)
         {
-            foreach (Card card in newCards)
+            foreach (HeldCard card in newCards)
                 AddCard(card);
         }
 
@@ -28,7 +28,7 @@ namespace HanabiMM
             return pile.Count;
         }
 
-        public Card GetCardAtPosition(int position)
+        public HeldCard GetCardAtPosition(int position)
         {
             return pile[position];
         }
@@ -38,7 +38,7 @@ namespace HanabiMM
             pile.RemoveAt(position);
         }
 
-        public List<Card> GetCards()
+        public List<HeldCard> GetCards()
         {
             return pile;
         }

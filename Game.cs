@@ -41,12 +41,12 @@ namespace HanabiMM
 
     public static class CardExtension
     {
-        public static bool isKnownRank(this Card card)
+        public static bool isKnownRank(this HeldCard card)
         {
             return CountTruePositions(card.rankBits);
         }
 
-        public static bool isKnownColor(this Card card)
+        public static bool isKnownColor(this HeldCard card)
         {
             return CountTruePositions(card.suitBits);
         }
@@ -60,7 +60,7 @@ namespace HanabiMM
             return (countElementsEqualTrue == 1);
         }
 
-        public static bool isKnownCard(this Card card)
+        public static bool isKnownCard(this HeldCard card)
         {
             return isKnownRank(card) && isKnownColor(card);
         }
@@ -70,13 +70,37 @@ namespace HanabiMM
     {
         public  Suit    suit        { get; set; }
         public  Rank    rank        { get; set; }
-        public BitArray suitBits           { get; set; }
-        public BitArray rankBits           { get; set; }
 
         public Card(Suit suit, Rank rank)
         {
             this.suit   = suit;
             this.rank   = rank;
+        }
+
+        public bool IsValidSuit()
+        {
+            return (suit != Suit.None);
+        }
+
+        public bool IsValidRank()
+        {
+            return (rank != Rank.Zero);
+        }
+
+        public override string ToString()
+        {
+            return string.Format("{0}{1}", suit.ToString("G")[0], Convert.ToUInt16(rank));
+        }
+    }
+
+    public class HeldCard : Card
+    {
+        public BitArray suitBits { get; set; }
+        public BitArray rankBits { get; set; }
+
+        public HeldCard(Suit suit, Rank rank)
+            :base(suit, rank)
+        {
             suitBits = new BitArray(5, true);
             rankBits = new BitArray(5, true);
         }
@@ -99,37 +123,12 @@ namespace HanabiMM
             rankBits.Set((int)rankCard - 1, false);
         }
 
-        public bool IsValidSuit()
-        {
-            return (suit != Suit.None);
-        }
-
-        public bool IsValidRank()
-        {
-            return (rank != Rank.Zero);
-        }
-
-
         public void openRank(Rank rankCard)
         {
             if (this.isKnownRank())
                 return;
             rankBits.SetAll(false);
             rankBits.Set((int)rankCard - 1, true);
-        }
-
-        public override string ToString()
-        {
-            return string.Format("{0}{1}", suit.ToString("G")[0], Convert.ToUInt16(rank));
-        }
-    }
-
-    public class HeldCard : Card
-    {
-        public HeldCard(Suit suit, Rank rank)
-            :base(suit, rank)
-        {
-
         }
     }
 
@@ -185,10 +184,9 @@ namespace HanabiMM
 
         public void Init()
         {
-            players = Enumerable.Range(0, 2).Select(i => new Player(i)).ToList();
-
-            deck = new Deck();
             board = new Board();
+            deck = new Deck();
+            players = Enumerable.Range(0, 2).Select(i => new Player(i, board)).ToList();
 
             turn = -1;
             finished = notFinished = false;
@@ -223,56 +221,6 @@ namespace HanabiMM
             Init();
         }
 
-        public IEnumerable<T> GeneratePossibilitiesForTurn<T>(Card card, BitArray bits)
-        {
-            var result = new List<T>();
-            var enumValues = Enum.GetValues(typeof(T)).GetEnumerator();
-            var i = 0;
-
-            enumValues.MoveNext();          // miss first element (Zero or None)
-            while (enumValues.MoveNext())
-            {
-                if (bits[i++])
-                    result.Add((T)enumValues.Current);
-            }
-            return result;
-        }
-
-        public IEnumerable<Card> GetDecartusMulti(Card card)
-        {
-            var possibleSuits = GeneratePossibilitiesForTurn<Suit>(card, card.suitBits);
-            var possibleRanks = GeneratePossibilitiesForTurn<Rank>(card, card.rankBits);
-            return possibleSuits.SelectMany(x => possibleRanks, (x, y) => new Card(x, y)).ToList();
-        }
-
-        public IEnumerable<Card> GetPossibleCardsForTurn(Card card)
-        {
-            var query = new List<Card>();
-            if (card.isKnownCard())
-                query.Add(card);
-            else
-                query = GetDecartusMulti(card).ToList();
-
-            return query;
-        }
-
-        public bool NotAllCardsInQueryCanPlay(List<Card> query)
-        {
-            foreach (var card in query)
-                if (!board.CardCanPlay(card))
-                    return true;
-            return false;
-        }
-
-        public void CheckRisksForCard(Card card)
-        {
-            if (level == 1) return;
-
-            var query = GetPossibleCardsForTurn(card).ToList();
-            if (NotAllCardsInQueryCanPlay(query))
-                risks++;
-        }
-
         public bool StartNewGame(CommandInfo commandInfo)
         {
             var cardConverter = new Converter();
@@ -296,10 +244,11 @@ namespace HanabiMM
             var player = GetCurrentPlayer();
 
             var currentCard = player.PlayCard(action.cardPositionsInHand[0]);
-            if (board.CardCanPlay(currentCard))
+            if (board.CardCanPlay(currentCard.Item1))
             {
-                CheckRisksForCard(currentCard);
-                board.AddCard(currentCard);
+                if (level != 1 && !currentCard.Item2)
+                    risks++;
+                board.AddCard(currentCard.Item1);
                 IncreaseGameParameters();
 
                 return CanGiveCardToPlayer(player);
