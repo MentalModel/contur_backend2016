@@ -7,9 +7,9 @@ namespace HanabiMM
 {
     public class Player
     {
-        private Pile playPile;
-        private Board board;
-        private int  name;
+        private Pile    playPile;
+        private Board   board;
+        private int     name;
 
         public Player(int name, Board playBoard)
         {
@@ -43,7 +43,7 @@ namespace HanabiMM
             return Tuple.Create((Card)card, IsRiskyTurn(card));
         }
 
-        public bool NotAllCardsInQueryCanPlay(List<HeldCard> query)
+        public bool NotAllCardsInQueryCanPlay(IEnumerable<HeldCard> query)
         {
             foreach (var card in query)
                 if (!board.CardCanPlay(card))
@@ -58,7 +58,6 @@ namespace HanabiMM
                 return false;
             return true;
         }
-
 
         public Card DropCard(int position)
         {
@@ -75,7 +74,7 @@ namespace HanabiMM
             playPile.AddCard(new HeldCard(card.suit, card.rank));
         }
 
-        public void AddCards(List<Card> cards)
+        public void AddCards(IEnumerable<Card> cards)
         {
             foreach (var card in cards)
                 AddCard(card);
@@ -139,39 +138,39 @@ namespace HanabiMM
             return query;
         }
 
-        public void DeduceSuitForMainCards(Suit suit, List<int> positions)
+        public void DeduceSuitForMainCards(Suit suit, IEnumerable<int> positions)
         {
             foreach (var index in positions)
                 OpenNthSuit(index, suit);
         }
 
-        public void DeduceSuitForOtherCards(Suit suit)
+        public void DeduceSuitForOtherCards(Suit suit, IEnumerable<int> positions)
         {
-            for (int i = 0; i < playPile.Count(); ++i)
-                CloseNthSuit(i, suit);
+            foreach(var index in positions)
+                CloseNthSuit(index, suit);
         }
 
-        public void DeduceSuit(Suit suit, List<int> positions)
+        public void DeduceSuit(Suit suit, IEnumerable<int> positions)
         {
-            DeduceSuitForOtherCards(suit);
+            DeduceSuitForOtherCards(suit, Enumerable.Range(0, playPile.Count()).Except(positions));
             DeduceSuitForMainCards(suit, positions);
         }
 
-        public void DeduceRankForMainCards(Rank rank, List<int> positions)
+        public void DeduceRankForMainCards(Rank rank, IEnumerable<int> positions)
         {
             foreach (var index in positions)
                 OpenNthRank(index, rank);
         }
 
-        public void DeduceRankForOtherCards(Rank rank)
+        public void DeduceRankForOtherCards(Rank rank, IEnumerable<int> positions)
         {
-            for (int i = 0; i < playPile.Count(); ++i)
-                CloseNthRank(i, rank);
+            foreach (var index in positions)
+                CloseNthRank(index, rank);
         }
 
         public void DeduceRank(Rank rank, List<int> positions)
         {
-            DeduceRankForOtherCards(rank);
+            DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(positions));
             DeduceRankForMainCards(rank, positions);
         }
 

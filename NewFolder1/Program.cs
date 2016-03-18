@@ -105,32 +105,26 @@ namespace HanabiMM
     {
         static void Main(string[] args)
         {
-            
-            Game newGame = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in11.txt", 
-                                                    @"D:\projects\HanabiMM\out\out11.txt");
+            Game newGame = new Game(2);
             newGame.Run();
 
-            /*
-            Game newGame1 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in12.txt", 
-                @"D:\projects\HanabiMM\out\out12.txt");
+            
+            Game newGame1 = new Game(2);
             newGame1.Run();
             
             
-            Game newGame2 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\inbig1.txt", 
-                @"D:\projects\HanabiMM\out\out1big.txt");
+            Game newGame2 = new Game(2);
             newGame2.Run();
             
             
-            Game newGame3 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in21.txt", 
-                                                     @"D:\projects\HanabiMM\out\out21.txt");
+            Game newGame3 = new Game(2);
             newGame3.Run();
 
             
             
-            Game newGame4 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\inbig2.txt", 
-                                                    @"D:\projects\HanabiMM\out\out2big.txt");
+            Game newGame4 = new Game(2);
             newGame4.Run();
-            */
+            
             
         }
     }

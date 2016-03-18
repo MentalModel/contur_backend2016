@@ -159,8 +159,6 @@ namespace HanabiMM
     public class Game
     {
         private const int CountCardsOnHand = 5;
-
-        private System.IO.TextWriter log;
         private Deck deck;
         private List<Player> players;
         private Board board;
@@ -172,12 +170,7 @@ namespace HanabiMM
         private int turn;
         private bool notFinished;
         private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
-
-
         private bool finished;
-        private string pathToFile;
-        private string pathOut;
-
 
         public Dictionary<ActionType, Func<CommandInfo, bool>> CreateDictionaryOptions()
         {
@@ -221,12 +214,9 @@ namespace HanabiMM
             return value;
         }
 
-        public Game(int countPlayers, System.IO.TextWriter logger, string path, string pathO)
+        public Game(int countPlayers)
         {
             optionsInvoker = CreateDictionaryOptions();
-            log = logger;
-            pathToFile = path;
-            pathOut = pathO;
             Init();
         }
 
@@ -306,17 +296,14 @@ namespace HanabiMM
 
         public void Run()
         {
-            string[] lines = System.IO.File.ReadAllLines(pathToFile);
             Parser Parser = new Parser();
-
-            System.IO.StreamWriter file = new System.IO.StreamWriter(pathOut);
-            //var reader = new Reader(Parser, Console.In);
-            //var ParsedInfo = reader.readFile();
-            //ParsedInfo.ToArray();
-
-            foreach (string line in lines)
+            string line = null;
+            do
             {
                 turn++;
+                line = Console.ReadLine();
+                if (line == null)
+                    break;
                 var ParsedInfo = Parser.Parse(line);
 
                 foreach (var value in optionsInvoker)
@@ -325,10 +312,9 @@ namespace HanabiMM
 
                 currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
                 if (!notFinished)
-                    file.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
-            }
+                    Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
+            } while (line != null);
             finished = true;
-            file.Close();
         }
     }
 };

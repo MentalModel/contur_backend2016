@@ -133,6 +133,8 @@ namespace HanabiMM
 
         public CommandInfo Parse(string inputString)
         {
+            if (inputString == null)
+                return null;
             foreach (var value in optionsInvoker)
                 if (inputString.StartsWith(value.Key))
                 {
