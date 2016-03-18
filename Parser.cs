@@ -7,30 +7,30 @@ namespace HanabiMM
 {
     public class Reader
     {
-        public IParser parser;
+        public IParser Parser;
         public System.IO.TextReader reader;
 
         public Reader(IParser p, System.IO.TextReader r)
         {
-            parser = p;
+            Parser = p;
             reader = r;
         }
 
-        public IEnumerable<DataInfo> read()
+        public IEnumerable<CommandInfo> read()
         {
             string line;
             while ((line = reader.ReadLine()) != null)
             {
-                    yield return parser.parse(line);
+                    yield return Parser.Parse(line);
             }
         }
 
-        public IEnumerable<DataInfo> readFile()
+        public IEnumerable<CommandInfo> readFile()
         {
             var smth = System.IO.File.ReadAllLines(@"D:\projects\HanabiMM\input.txt");
             foreach (string line in smth)
             {
-                yield return parser.parse(line);
+                yield return Parser.Parse(line);
             }
         }
     }
@@ -61,7 +61,7 @@ namespace HanabiMM
         }
     }
 
-    public class DataInfo
+    public class CommandInfo
     {
         public int[] cardPositionsInHand;
         public ActionType action;
@@ -71,7 +71,7 @@ namespace HanabiMM
         public List<string[]> playerCards { get; set; }
         public string[] deckCards { get; set; }
 
-        public DataInfo()
+        public CommandInfo()
         {
             playerCards = new List<string[]>();
             cardPositionsInHand = null;
@@ -80,7 +80,7 @@ namespace HanabiMM
            
         }
 
-        public DataInfo(int[] i, ActionType a, string s)
+        public CommandInfo(int[] i, ActionType a, string s)
         {
             playerCards = new List<string[]>();
             cardPositionsInHand = i;
@@ -89,7 +89,7 @@ namespace HanabiMM
             this.s = s;
         }
 
-        public DataInfo(ActionType a, Hint h, string s)
+        public CommandInfo(ActionType a, Hint h, string s)
         {
             playerCards = new List<string[]>();
             cardPositionsInHand = null;
@@ -98,7 +98,7 @@ namespace HanabiMM
             this.s = s;
         }
 
-        public DataInfo(List<string[]> playerCards, string[] deckCards, string s)
+        public CommandInfo(List<string[]> playerCards, string[] deckCards, string s)
         {
             this.playerCards = playerCards;
             this.deckCards = deckCards;
@@ -108,37 +108,44 @@ namespace HanabiMM
 
     public interface IParser
     {
-        DataInfo parse(string s);
+        CommandInfo Parse(string s);
     }
 
     public class Parser : IParser
     {
-        public const int STARTS_AT = 5;
-        public Dictionary<string, Func<string, DataInfo>> optionsInvoker;
+        private const int STARTS_AT = 5;
+        private Dictionary<string, Func<string, CommandInfo>> optionsInvoker;
 
-        public Dictionary<string, Func<string, DataInfo>> createDictionaryOptions()
+        public Parser()
         {
-            var dictionary = new Dictionary<string, Func<string, DataInfo>>
+            optionsInvoker = CreateDictionaryOptions();
+        }
+
+        public Dictionary<string, Func<string, CommandInfo>> CreateDictionaryOptions()
+        {
+            var dictionary = new Dictionary<string, Func<string, CommandInfo>>
             {
-                { "Start",      parseStartNewGame },
-                { "Play",       parsePlay },
-                { "Drop",       parseDrop },
-                { "Tell color", parseColorHint },
-                { "Tell rank",  parseRankHint }
+                { "Start",      ParseStartNewGame },
+                { "Play",       ParsePlay },
+                { "Drop",       ParseDrop },
+                { "Tell color", ParseColorHint },
+                { "Tell rank",  ParseRankHint }
             };
             return dictionary;
         }
 
-        public DataInfo parse(string s)
+
+
+        public CommandInfo Parse(string inputString)
         {
             foreach (var value in optionsInvoker)
-                if (s.StartsWith(value.Key))
-                    return optionsInvoker[value.Key].Invoke(s);
+                if (inputString.StartsWith(value.Key))
+                    return optionsInvoker[value.Key].Invoke(inputString);
  
             return null;
         }
 
-        public DataInfo parseStartNewGame(string s)
+        public CommandInfo ParseStartNewGame(string s)
         {
             var tokens = s.Split(' ');
             int decksCardCount = tokens.Length - 5 * 3;
@@ -152,15 +159,15 @@ namespace HanabiMM
             string[] cards = new string[decksCardCount];
             Array.Copy(tokens, 15, cards, 0, decksCardCount);
 
-            return new DataInfo(new List<string[]> { firstPlayerCards, secondPlayerCards },  cards, s );
+            return new CommandInfo(new List<string[]> { firstPlayerCards, secondPlayerCards },  cards, s );
         }
 
-        public DataInfo parsePlay(string s)
+        public CommandInfo ParsePlay(string input)
         {
             try
             {
-                var tokens = s.Split(' ');
-                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Play, s);
+                var tokens = input.Split(' ');
+                return new CommandInfo(new[] { int.Parse(tokens[2]) }, ActionType.Play, input);
             }
             catch (ArgumentException)
             {
@@ -168,12 +175,12 @@ namespace HanabiMM
             }
         }
 
-        public DataInfo parseDrop(string s)
+        public CommandInfo ParseDrop(string input)
         {
             try
             {
-                var tokens = s.Split(' ');
-                return new DataInfo(new[] { int.Parse(tokens[2]) }, ActionType.Discard, s);
+                var tokens = input.Split(' ');
+                return new CommandInfo(new[] { int.Parse(tokens[2]) }, ActionType.Discard, input);
             }
             catch (ArgumentException)
             {
@@ -182,13 +189,14 @@ namespace HanabiMM
         }
 
         // Tell color Red for cards 0 1 2 3 4
-        public DataInfo parseColorHint(string s)
+        public CommandInfo ParseColorHint(string input)
         {
             try
             {
-                var tokens = s.Split(' ');
+                var tokens = input.Split(' ');
                 var color = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
-                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()), s);
+                return new CommandInfo(ActionType.Clue, new Hint(color, 
+                    GetCardsPositionInHand(tokens).ToList()), input);
             }
             catch (ArgumentException)
             {
@@ -197,13 +205,13 @@ namespace HanabiMM
         }
 
         // Tell rank 1 for cards 2 4
-        public DataInfo parseRankHint(string s)
+        public CommandInfo ParseRankHint(string input)
         {
             try
             {
-                var tokens = s.Split(' ');
+                var tokens = input.Split(' ');
                 var color = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
-                return new DataInfo(ActionType.Clue, new Hint(color, getCardsPositionInHand(tokens).ToList()), s);
+                return new CommandInfo(ActionType.Clue, new Hint(color, GetCardsPositionInHand(tokens).ToList()), input);
             }
             catch (ArgumentException)
             {
@@ -211,12 +219,9 @@ namespace HanabiMM
             }
         }
 
-        public Parser()
-        {
-            optionsInvoker  = createDictionaryOptions();
-        }
 
-        public IEnumerable<int> getCardsPositionInHand(string[] tokens)
+
+        public IEnumerable<int> GetCardsPositionInHand(string[] tokens)
         {
             var result = new List<int>();
             try

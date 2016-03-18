@@ -47,12 +47,12 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Board.cs" />
+    <Compile Include="NewFolder1\Board.cs" />
     <Compile Include="Deck.cs" />
     <Compile Include="Game.cs" />
     <Compile Include="Parser.cs" />
-    <Compile Include="Pile.cs" />
-    <Compile Include="Player.cs" />
+    <Compile Include="NewFolder1\Pile.cs" />
+    <Compile Include="NewFolder1\Player.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

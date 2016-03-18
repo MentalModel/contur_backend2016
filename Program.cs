@@ -126,11 +126,11 @@ namespace HanabiMM
             newGame3.Run();
 
             
-    
+            
             Game newGame4 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\inbig2.txt", 
                                                     @"D:\projects\HanabiMM\out\out2big.txt", 2);
             newGame4.Run();
-            /**/
+            
             
         }
     }

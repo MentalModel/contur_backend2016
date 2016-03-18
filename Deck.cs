@@ -25,33 +25,23 @@ namespace HanabiMM
             return card;
         }
 
-        public Card seeTop()
-        {
-            return cards[0];
-        }
-
-        public void addCard(Card card)
+        public void AddCard(Card card)
         {
             cards.Add(card);
         }
 
-        public void addCards(List<Card> cards)
+        public void AddCards(List<Card> cards)
         {
             foreach (Card card in cards)
-                addCard(card);
+                AddCard(card);
         }
 
-        public bool isEmpty()
+        public bool IsEmpty()
         {
-            return cards.Count == 0;
+            return (cards.Count == 0);
         }
 
-        public bool hasLastCard()
-        {
-            return cards.Count == 1;
-        }
-
-        public void reverse()
+        public void Reverse()
         {
             cards.Reverse();
         }
