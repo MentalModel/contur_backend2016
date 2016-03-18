@@ -107,12 +107,12 @@ namespace HanabiMM
         {
             
             Game newGame = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in11.txt", 
-                                                    @"D:\projects\HanabiMM\out\out11.txt", 1);
+                                                    @"D:\projects\HanabiMM\out\out11.txt");
             newGame.Run();
 
-            
+            /*
             Game newGame1 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in12.txt", 
-                @"D:\projects\HanabiMM\out\out12.txt", 1);
+                @"D:\projects\HanabiMM\out\out12.txt");
             newGame1.Run();
             
             
@@ -122,15 +122,15 @@ namespace HanabiMM
             
             
             Game newGame3 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\in21.txt", 
-                                                     @"D:\projects\HanabiMM\out\out21.txt", 2);
+                                                     @"D:\projects\HanabiMM\out\out21.txt");
             newGame3.Run();
 
             
             
             Game newGame4 = new Game(2, Console.Out, @"D:\projects\HanabiMM\in\inbig2.txt", 
-                                                    @"D:\projects\HanabiMM\out\out2big.txt", 2);
+                                                    @"D:\projects\HanabiMM\out\out2big.txt");
             newGame4.Run();
-            
+            */
             
         }
     }

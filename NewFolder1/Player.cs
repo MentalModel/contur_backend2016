@@ -15,7 +15,7 @@ namespace HanabiMM
         {
             this.name   = name;
             playPile    = new Pile();
-            board = playBoard;
+            board       = playBoard;
         }
 
         public Card CardAtPosition(int position)
@@ -39,6 +39,7 @@ namespace HanabiMM
         {
             var card  = playPile.GetCardAtPosition(position);
             playPile.RemoveCardAtPosition(position);
+
             return Tuple.Create((Card)card, IsRiskyTurn(card));
         }
 
@@ -136,6 +137,42 @@ namespace HanabiMM
                 query = GetDecartusMulti(card).ToList();
 
             return query;
+        }
+
+        public void DeduceSuitForMainCards(Suit suit, List<int> positions)
+        {
+            foreach (var index in positions)
+                OpenNthSuit(index, suit);
+        }
+
+        public void DeduceSuitForOtherCards(Suit suit)
+        {
+            for (int i = 0; i < playPile.Count(); ++i)
+                CloseNthSuit(i, suit);
+        }
+
+        public void DeduceSuit(Suit suit, List<int> positions)
+        {
+            DeduceSuitForOtherCards(suit);
+            DeduceSuitForMainCards(suit, positions);
+        }
+
+        public void DeduceRankForMainCards(Rank rank, List<int> positions)
+        {
+            foreach (var index in positions)
+                OpenNthRank(index, rank);
+        }
+
+        public void DeduceRankForOtherCards(Rank rank)
+        {
+            for (int i = 0; i < playPile.Count(); ++i)
+                CloseNthRank(i, rank);
+        }
+
+        public void DeduceRank(Rank rank, List<int> positions)
+        {
+            DeduceRankForOtherCards(rank);
+            DeduceRankForMainCards(rank, positions);
         }
 
 

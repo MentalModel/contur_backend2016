@@ -8,15 +8,11 @@ namespace HanabiMM
     public enum ActionType
     {
         NoAction,
+        StartGame,
         Play,
-        Discard,
-        Clue
-    }
-
-    public enum ClueType
-    {
-        Rank,
-        Suit
+        Drop,
+        ClueRank,
+        ClueSuit
     }
 
     public enum Suit
@@ -175,20 +171,33 @@ namespace HanabiMM
         private int score;
         private int turn;
         private bool notFinished;
-        private int level;
+        private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
 
 
         private bool finished;
         private string pathToFile;
         private string pathOut;
 
+
+        public Dictionary<ActionType, Func<CommandInfo, bool>> CreateDictionaryOptions()
+        {
+            var dictionary = new Dictionary<ActionType, Func<CommandInfo, bool>>
+            {
+                { ActionType.StartGame, StartNewGame },
+                { ActionType.Play,      ProcessPlay },
+                { ActionType.ClueRank,  ProcessRankHint },
+                { ActionType.ClueSuit,  ProcessSuitHint },
+                { ActionType.Drop,      ProcessDrop }
+            };
+            return dictionary;
+        }
+
         public void Init()
         {
             board = new Board();
-            deck = new Deck();
             players = Enumerable.Range(0, 2).Select(i => new Player(i, board)).ToList();
-
-            turn = -1;
+            deck = new Deck();
+            turn = 0;
             finished = notFinished = false;
             cards = 0;
             score = 0;
@@ -212,19 +221,19 @@ namespace HanabiMM
             return value;
         }
 
-        public Game(int countPlayers, System.IO.TextWriter logger, string path, string pathO, int level = 1)
+        public Game(int countPlayers, System.IO.TextWriter logger, string path, string pathO)
         {
+            optionsInvoker = CreateDictionaryOptions();
             log = logger;
             pathToFile = path;
             pathOut = pathO;
-            this.level = level;
             Init();
         }
 
         public bool StartNewGame(CommandInfo commandInfo)
         {
+            Init();
             var cardConverter = new Converter();
-
             deck.AddCards(cardConverter.GetCardsFromString(commandInfo.deckCards).ToList());
 
             for (var i = 0; i < 2; ++i)
@@ -246,12 +255,12 @@ namespace HanabiMM
             var currentCard = player.PlayCard(action.cardPositionsInHand[0]);
             if (board.CardCanPlay(currentCard.Item1))
             {
-                if (level != 1 && !currentCard.Item2)
+                if (!currentCard.Item2)
                     risks++;
                 board.AddCard(currentCard.Item1);
                 IncreaseGameParameters();
 
-                return CanGiveCardToPlayer(player);
+                return CanGiveCardToPlayer(player) && !board.BoardIsFull();
             }
             return false;
         }
@@ -265,7 +274,7 @@ namespace HanabiMM
 
         public bool CanGiveCardToPlayer(Player player)
         {
-            var topDeckCard = deck.Draw();
+            var topDeckCard = deck.GetTop();
 
             if (topDeckCard != null)
                 player.AddCard(topDeckCard);
@@ -273,50 +282,14 @@ namespace HanabiMM
             return !(deck.IsEmpty() || topDeckCard == null);
         }
 
-        public void DeduceSuitForMainCards(Player player, CommandInfo act)
-        {
-            foreach (var index in act.hint.pos)
-                player.OpenNthSuit(index, act.hint.suit);
-        }
-
-        public void DeduceSuitForOtherCards(Player player, Suit suit)
-        {
-            for (int i = 0; i < player.CountCards(); ++i)
-                player.CloseNthSuit(i, suit);
-        }
-
-        public void DeduceSuit(Player player, CommandInfo act)
-        {
-            DeduceSuitForOtherCards(player, act.hint.suit);
-            DeduceSuitForMainCards(player, act);
-        }
-
-        public void DeduceRankForMainCards(Player player, CommandInfo act)
-        {
-            foreach (var index in act.hint.pos)
-                player.OpenNthRank(index, act.hint.rank);
-        }
-
-        public void DeduceRankForOtherCards(Player player, Rank rank)
-        {
-            for (int i = 0; i < player.CountCards(); ++i)
-                player.CloseNthRank(i, rank);
-        }
-
-        public void DeduceRank(Player player, CommandInfo act)
-        {
-            DeduceRankForOtherCards(player, act.hint.rank);
-            DeduceRankForMainCards(player, act);
-        }
-
-        public bool ProcessColorHint(CommandInfo act)
+        public bool ProcessSuitHint(CommandInfo act)
         {
             var player = GetNextPlayer();
             var suitCardsPositions = player.GetAllPositionsOfSuitCards(act.hint.suit).ToList();
             if (!suitCardsPositions.SequenceEqual(act.hint.pos))
                 return false;
 
-            DeduceSuit(player, act);
+            player.DeduceSuit(act.hint.suit, act.hint.pos);
             return true;
         }
 
@@ -327,7 +300,7 @@ namespace HanabiMM
             if (!rankCardsPositions.SequenceEqual(act.hint.pos))
                 return false;
 
-            DeduceRank(player, act);
+            player.DeduceRank(act.hint.rank, act.hint.pos);
             return true;
         }
 
@@ -336,54 +309,23 @@ namespace HanabiMM
             string[] lines = System.IO.File.ReadAllLines(pathToFile);
             Parser Parser = new Parser();
 
-
             System.IO.StreamWriter file = new System.IO.StreamWriter(pathOut);
-
             //var reader = new Reader(Parser, Console.In);
             //var ParsedInfo = reader.readFile();
-
             //ParsedInfo.ToArray();
-
 
             foreach (string line in lines)
             {
                 turn++;
                 var ParsedInfo = Parser.Parse(line);
 
-                if (ParsedInfo.action == ActionType.Play)
-                {
-                    notFinished = this.ProcessPlay(ParsedInfo);
-                }
-                else if (ParsedInfo.action == ActionType.Discard)
-                {
-                    notFinished = this.ProcessDrop(ParsedInfo);
-                }
-                else if (ParsedInfo.action == ActionType.Clue)
-                {
-                    if (ParsedInfo.hint.rank != Rank.Zero)
-                    {
-                        notFinished = this.ProcessRankHint(ParsedInfo);
-                    }
-                    else
-                        notFinished = this.ProcessColorHint(ParsedInfo);
-                }
-                else
-                {
-                    if (notFinished)
-                    {
-                        Init();
-                        turn++;
-                    }
-                    notFinished = this.StartNewGame(ParsedInfo);
-                }
-                finished = !notFinished;
-                currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
-                if (finished)
-                {
-                    file.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
-                    Init();
-                }
+                foreach (var value in optionsInvoker)
+                    if (ParsedInfo.action == value.Key)
+                        notFinished = optionsInvoker[value.Key].Invoke(ParsedInfo);
 
+                currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+                if (!notFinished)
+                    file.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
             }
             finished = true;
             file.Close();

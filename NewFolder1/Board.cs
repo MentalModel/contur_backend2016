@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 
 namespace HanabiMM
 {
@@ -39,7 +38,7 @@ namespace HanabiMM
 
         public int GetScore()
         {
-            return boardCards.Count(card => card.IsValidRank());
+            return GetDepth();
         }
 
         public int GetDepth()
@@ -48,6 +47,11 @@ namespace HanabiMM
                 .Where(card => card.IsValidRank())
                 .Select(card => card.rank)
                 .Sum(c => (int)c);
+        }
+
+        public bool BoardIsFull()
+        {
+            return (GetDepth() == 25);
         }
 
         public override string ToString()

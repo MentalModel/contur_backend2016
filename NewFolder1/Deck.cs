@@ -1,8 +1,5 @@
-﻿using System;
+﻿
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace HanabiMM
 {
@@ -15,7 +12,7 @@ namespace HanabiMM
             cards = new List<Card>();
         }
 
-        public Card Draw()
+        public Card GetTop()
         {
             if (cards.Count == 0)
                 return null;
@@ -32,7 +29,7 @@ namespace HanabiMM
 
         public void AddCards(List<Card> cards)
         {
-            foreach (Card card in cards)
+            foreach (var card in cards)
                 AddCard(card);
         }
 
@@ -44,11 +41,6 @@ namespace HanabiMM
         public void Reverse()
         {
             cards.Reverse();
-        }
-
-        public List<Card> getCards()
-        {
-            return cards;
         }
     }
 }
