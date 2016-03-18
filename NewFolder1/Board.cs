@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace HanabiMM
 {
@@ -14,15 +15,15 @@ namespace HanabiMM
             InitBoard();
         }
 
-        public int GetIndexFromSuit(Suit suit)
-        {
-            return ((int)suit - 1);
-        }
-
         private void InitBoard()
         {
-            for(var suit = Suit.Red; suit <= Suit.Yellow; ++suit)
-                boardCards[GetIndexFromSuit(suit)] = new Card(suit, Rank.Zero, Holder.Board);
+            for (var suit = Suit.Red; suit <= Suit.Yellow; ++suit)
+                boardCards[GetIndexFromSuit(suit)] = new Card(suit, Rank.Zero);
+        }
+
+        private int GetIndexFromSuit(Suit suit)
+        {
+            return ((int)suit - 1);
         }
 
         public void AddCard(Card card)
@@ -30,18 +31,23 @@ namespace HanabiMM
             boardCards[GetIndexFromSuit(card.suit)] = card;
         }
 
-        public bool IsFull()
-        {
-            foreach (var card in boardCards)
-                if (card.rank < Rank.Five)
-                    return false;
-            return true;
-        }
-
         public bool CardCanPlay(Card card)
         {
             var topRank = boardCards[GetIndexFromSuit(card.suit)].rank;
             return (topRank + 1 == card.rank);
+        }
+
+        public int GetScore()
+        {
+            return boardCards.Count(card => card.IsValidRank());
+        }
+
+        public int GetDepth()
+        {
+            return boardCards
+                .Where(card => card.IsValidRank())
+                .Select(card => card.rank)
+                .Sum(c => (int)c);
         }
 
         public override string ToString()

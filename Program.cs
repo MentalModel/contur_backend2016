@@ -36,7 +36,7 @@ namespace HanabiMM
 
         public override bool Execute()
         {
-            return game.startNewGame(this);
+            return game.StartNewGame(this);
         }
     }
 

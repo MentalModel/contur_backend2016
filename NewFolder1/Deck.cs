@@ -15,11 +15,11 @@ namespace HanabiMM
             cards = new List<Card>();
         }
 
-        //public int Score() { return all.Count(c => c.In == Card.Holder.BOARD); }
-        //public int Depth() { return all.Count(c => c.In == Card.Holder.DECK); }
-
         public Card Draw()
         {
+            if (cards.Count == 0)
+                return null;
+
             var card = cards[0];
             cards.RemoveAt(0);
             return card;

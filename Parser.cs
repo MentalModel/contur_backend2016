@@ -219,8 +219,6 @@ namespace HanabiMM
             }
         }
 
-
-
         public IEnumerable<int> GetCardsPositionInHand(string[] tokens)
         {
             var result = new List<int>();

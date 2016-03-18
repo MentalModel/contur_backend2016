@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace HanabiMM
 {
@@ -21,6 +22,18 @@ namespace HanabiMM
         public Card CardAtPosition(int position)
         {
             return playPile.GetCardAtPosition(position);
+        }
+
+        public IEnumerable<int> GetAllPositionsOfSuitCards(Suit suit)
+        {
+            var result = playPile.GetCards();
+            return result.Where(w => (w.suit == suit)).Select(w => result.IndexOf(w));
+        }
+
+        public IEnumerable<int> GetAllPositionsOfRankCards(Rank rank)
+        {
+            var result = playPile.GetCards();
+            return result.Where(w => (w.rank == rank)).Select(w => result.IndexOf(w));
         }
 
         public Card PlayCard(int position)
