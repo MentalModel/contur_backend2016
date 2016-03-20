@@ -154,7 +154,7 @@ namespace HanabiMM
     {
         private const int       CountCardsOnHand = 5;
         private IDeck           deck;
-        private List<Player>    players;
+        private List<IPlayer>   players;
         private IBoard          hanabiBoard;
 
         private int             currentIndexOfPlayer;
@@ -192,7 +192,8 @@ namespace HanabiMM
         private void Init()
         {
             hanabiBoard     = new HanabiBoard();
-            players         = Enumerable.Range(0, countPlayers).Select(i => new Player(i, hanabiBoard)).ToList();
+            players         = new List<IPlayer>();
+            AddPlayersToGame();
             deck            = new Deck();
             finished        = false;
             missInput       = false;
@@ -200,14 +201,21 @@ namespace HanabiMM
             currentIndexOfPlayer = 1;
         }
 
-        private Player GetCurrentPlayer()
+        private void AddPlayersToGame()
         {
-            return players[currentIndexOfPlayer];
+            players = new List<IPlayer>();
+            for (var i = 0; i < countPlayers; ++i)
+                players.Add(new HanabiPlayer(i, hanabiBoard));
+        } 
+
+        private IPlayer GetCurrentPlayer()
+        {
+            return (HanabiPlayer)players[currentIndexOfPlayer];
         }
 
-        private Player GetNextPlayer()
+        private IPlayer GetNextPlayer()
         {
-            return players[NextPlayer()];
+            return (HanabiPlayer)players[NextPlayer()];
         }
 
         private void ChangeTurn()
@@ -243,7 +251,7 @@ namespace HanabiMM
         {
             var player = GetCurrentPlayer();
 
-            var currentCard = player.PlayCard(parsedCommandionType.CardPositionInHand);
+            var currentCard = ((HanabiPlayer)player).PlayCard(parsedCommandionType.CardPositionInHand);
             if (hanabiBoard.CardCanPlay(currentCard.Item1))
             {
                 if (!currentCard.Item2)
@@ -251,19 +259,19 @@ namespace HanabiMM
                 hanabiBoard.AddCard(currentCard.Item1);
                 IncreaseGameParameters();
 
-                return !(CanGiveCardToPlayer(player) && !((HanabiBoard)hanabiBoard).BoardIsFull());
+                return !(CanGiveCardToPlayer((HanabiPlayer)player) && !((HanabiBoard)hanabiBoard).BoardIsFull());
             }
             return true;
         }
 
         private bool ProcessDrop(CommandInfo parsedCommandionType)
         {
-            var player = GetCurrentPlayer();
+            var player = (HanabiPlayer)GetCurrentPlayer();
             player.DropCard(parsedCommandionType.CardPositionInHand);
             return !CanGiveCardToPlayer(player);
         }
 
-        private bool CanGiveCardToPlayer(Player player)
+        private bool CanGiveCardToPlayer(HanabiPlayer player)
         {
             var topDeckCard = deck.GetTop();
 
@@ -276,22 +284,22 @@ namespace HanabiMM
         private bool ProcessSuitHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var suitCardsPositions = player.GetAllPositionsOfSuit(parsedCommand.Hint.Suit).ToList();
+            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.Hint.Suit).ToList();
             if (!suitCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
                 return true;
 
-            player.DeduceSuit(parsedCommand.Hint.Suit, parsedCommand.Hint.CardHandPositions);
+            ((HanabiPlayer)player).DeduceSuit(parsedCommand.Hint.Suit, parsedCommand.Hint.CardHandPositions);
             return false;
         }
 
         private bool ProcessRankHint(CommandInfo parsedCommand)
         {
             var player              = GetNextPlayer();
-            var rankCardsPositions  = player.GetAllPositionsOfRank(parsedCommand.Hint.Rank).ToList();
+            var rankCardsPositions  = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.Hint.Rank).ToList();
             if (!rankCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
                 return true;
 
-            player.DeduceRank(parsedCommand.Hint.Rank, parsedCommand.Hint.CardHandPositions);
+            ((HanabiPlayer)player).DeduceRank(parsedCommand.Hint.Rank, parsedCommand.Hint.CardHandPositions);
             return false;
         }
 

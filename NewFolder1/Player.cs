@@ -5,13 +5,20 @@ using System.Linq;
 
 namespace HanabiMM
 {
-    public class Player
+    public interface IPlayer
+    {
+        void AddCard(Card card);
+        void AddCards(IEnumerable<Card> cards);
+        int  CountCards();
+    }
+
+    public class HanabiPlayer : IPlayer
     {
         private IPile           playPile;
         private IBoard          hanabiBoard;
         private readonly int    name;
 
-        public Player(int name, IBoard playBoard)
+        public HanabiPlayer(int name, IBoard playBoard)
         {
             this.name   = name;
             playPile    = new Pile();
