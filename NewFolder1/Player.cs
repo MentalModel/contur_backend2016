@@ -7,61 +7,66 @@ namespace HanabiMM
 {
     public class Player
     {
-        private Pile    playPile;
-        private Board   board;
-        private int     name;
+        private IPile           playPile;
+        private IBoard          hanabiBoard;
+        private readonly int    name;
 
-        public Player(int name, Board playBoard)
+        public Player(int name, IBoard playBoard)
         {
             this.name   = name;
             playPile    = new Pile();
-            board       = playBoard;
+            hanabiBoard = (HanabiBoard)playBoard;
         }
 
-        public Card CardAtPosition(int position)
+        public Card CardAtPosition(int cardHandPosition)
         {
-            return playPile.GetCardAtPosition(position);
+            return ((Pile)playPile)[cardHandPosition];
         }
 
-        public IEnumerable<int> GetAllPositionsOfSuitCards(Suit suit)
+        public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
         {
-            var result = playPile.GetCards();
+            var result = playPile.GetCards().ToList();
             return result.Where(w => (w.suit == suit)).Select(w => result.IndexOf(w));
         }
 
-        public IEnumerable<int> GetAllPositionsOfRankCards(Rank rank)
+        public IEnumerable<int> GetAllPositionsOfRank(Rank rank)
         {
-            var result = playPile.GetCards();
+            var result = ((Pile)playPile).GetCards().ToList();
             return result.Where(w => (w.rank == rank)).Select(w => result.IndexOf(w));
         }
 
-        public Tuple<Card, bool> PlayCard(int position)
+        public Tuple<Card, bool> PlayCard(int cardHandPosition)
         {
-            var card  = playPile.GetCardAtPosition(position);
-            playPile.RemoveCardAtPosition(position);
+            var card  = ((Pile)playPile)[cardHandPosition];
+            ((Pile)playPile).RemoveCardAtPosition(cardHandPosition);
 
-            return Tuple.Create((Card)card, IsRiskyTurn(card));
+            return Tuple.Create(card, IsRiskyTurn(card));
         }
 
-        public bool NotAllCardsInQueryCanPlay(IEnumerable<HeldCard> query)
+        private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
         {
             foreach (var card in query)
-                if (!board.CardCanPlay(card))
+                if (!hanabiBoard.CardCanPlay(card))
                     return true;
             return false;
         }
 
-        public bool IsRiskyTurn(HeldCard card)
+        private bool IsRiskyTurn(Card moveCard)
         {
-            var query = GetPossibleCardsForTurn(card).ToList();
-            if (NotAllCardsInQueryCanPlay(query))
-                return false;
+            HeldCard card = moveCard as HeldCard;
+            if (card != null)
+            {
+                var query = GetPossibleCardsForTurn(card).ToList();
+                if (NotAllCardsInQueryCanPlay(query))
+                    return false;
+                return true;
+            }
             return true;
         }
 
-        public Card DropCard(int position)
+        public Card DropCard(int cardHandPosition)
         {
-            return PlayCard(position).Item1;
+            return PlayCard(cardHandPosition).Item1;
         }
 
         public int GetName()
@@ -85,51 +90,51 @@ namespace HanabiMM
             return playPile.Count();
         }
 
-        public void OpenNthRank(int index, Rank rank)
+        private void OpenNthRank(int index, Rank rank)
         {
-            playPile.GetCardAtPosition(index).openRank(rank);
+            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            if (card != null)
+                card.OpenRank(rank);
         }
 
-        public void CloseNthRank(int index, Rank rank)
+        private void CloseNthRank(int index, Rank rank)
         {
-            playPile.GetCardAtPosition(index).closeRank(rank);
+            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            if (card != null)
+                card.CloseRank(rank);
         }
 
-        public void OpenNthSuit(int index, Suit suitCard)
+        private void OpenNthSuit(int index, Suit suitCard)
         {
-            playPile.GetCardAtPosition(index).openSuit(suitCard);
+            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            if (card != null)
+                card.OpenSuit(suitCard);
         }
 
-        public void CloseNthSuit(int index, Suit suitCard)
+        private void CloseNthSuit(int index, Suit suitCard)
         {
-            playPile.GetCardAtPosition(index).closeSuit(suitCard);
+            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            if (card != null)
+                card.CloseSuit(suitCard);
         }
 
-        public IEnumerable<T> GeneratePossibilitiesForTurn<T>(HeldCard card, BitArray bits)
+        private IEnumerable<Card> GetDecartusMulti(Card turnCard)
         {
-            var result = new List<T>();
-            var enumValues = Enum.GetValues(typeof(T)).GetEnumerator();
-            var i = 0;
-
-            enumValues.MoveNext();          // miss first element (Zero or None)
-            while (enumValues.MoveNext())
-            {
-                if (bits[i++])
-                    result.Add((T)enumValues.Current);
-            }
-            return result;
+            HeldCard card = turnCard as HeldCard;
+            if (card == null)
+                return null;
+            var cardHandPossibleSuits =  card.GetPossibleSuits();
+            var cardHandPossibleRanks =  card.GetPossibleRanks();
+            return cardHandPossibleSuits.SelectMany(x => cardHandPossibleRanks, (x, y) => new Card(x, y)).ToList();
         }
 
-        public IEnumerable<HeldCard> GetDecartusMulti(HeldCard card)
+        private IEnumerable<Card> GetPossibleCardsForTurn(Card turnCard)
         {
-            var possibleSuits = GeneratePossibilitiesForTurn<Suit>(card, card.suitBits);
-            var possibleRanks = GeneratePossibilitiesForTurn<Rank>(card, card.rankBits);
-            return possibleSuits.SelectMany(x => possibleRanks, (x, y) => new HeldCard(x, y)).ToList();
-        }
+            HeldCard card = turnCard as HeldCard;
+            if (card == null)
+                return null;
 
-        public IEnumerable<HeldCard> GetPossibleCardsForTurn(HeldCard card)
-        {
-            var query = new List<HeldCard>();
+            var query = new List<Card>();
             if (card.isKnownCard())
                 query.Add(card);
             else
@@ -138,42 +143,41 @@ namespace HanabiMM
             return query;
         }
 
-        public void DeduceSuitForMainCards(Suit suit, IEnumerable<int> positions)
+        private void DeduceSuitForMainCards(Suit suit, IEnumerable<int> cardHandPosition)
         {
-            foreach (var index in positions)
+            foreach (var index in cardHandPosition)
                 OpenNthSuit(index, suit);
         }
 
-        public void DeduceSuitForOtherCards(Suit suit, IEnumerable<int> positions)
+        private void DeduceSuitForOtherCards(Suit suit, IEnumerable<int> cardHandPosition)
         {
-            foreach(var index in positions)
+            foreach(var index in cardHandPosition)
                 CloseNthSuit(index, suit);
         }
 
-        public void DeduceSuit(Suit suit, IEnumerable<int> positions)
+        public void DeduceSuit(Suit suit, IEnumerable<int> cardHandPosition)
         {
-            DeduceSuitForOtherCards(suit, Enumerable.Range(0, playPile.Count()).Except(positions));
-            DeduceSuitForMainCards(suit, positions);
+            DeduceSuitForOtherCards(suit, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
+            DeduceSuitForMainCards(suit, cardHandPosition);
         }
 
-        public void DeduceRankForMainCards(Rank rank, IEnumerable<int> positions)
+        private void DeduceRankForMainCards(Rank rank, IEnumerable<int> cardHandPosition)
         {
-            foreach (var index in positions)
+            foreach (var index in cardHandPosition)
                 OpenNthRank(index, rank);
         }
 
-        public void DeduceRankForOtherCards(Rank rank, IEnumerable<int> positions)
+        private void DeduceRankForOtherCards(Rank rank, IEnumerable<int> cardHandPosition)
         {
-            foreach (var index in positions)
+            foreach (var index in cardHandPosition)
                 CloseNthRank(index, rank);
         }
 
-        public void DeduceRank(Rank rank, List<int> positions)
+        public void DeduceRank(Rank rank, IEnumerable<int> cardHandPosition)
         {
-            DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(positions));
-            DeduceRankForMainCards(rank, positions);
+            DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
+            DeduceRankForMainCards(rank, cardHandPosition);
         }
-
 
         public override string ToString()
         {

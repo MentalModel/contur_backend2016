@@ -3,7 +3,15 @@ using System.Collections.Generic;
 
 namespace HanabiMM
 {
-    public class Deck
+    public interface IDeck
+    {
+        void AddCard(Card card);
+        void AddCards(IEnumerable<Card> cards);
+        bool IsEmpty();
+        Card GetTop();
+    }
+
+    public class Deck : IDeck
     {
         private List<Card> cards;
 
@@ -27,7 +35,7 @@ namespace HanabiMM
             cards.Add(card);
         }
 
-        public void AddCards(List<Card> cards)
+        public void AddCards(IEnumerable<Card> cards)
         {
             foreach (var card in cards)
                 AddCard(card);
@@ -36,11 +44,6 @@ namespace HanabiMM
         public bool IsEmpty()
         {
             return (cards.Count == 0);
-        }
-
-        public void Reverse()
-        {
-            cards.Reverse();
         }
     }
 }

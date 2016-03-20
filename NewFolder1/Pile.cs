@@ -3,23 +3,32 @@ using System.Linq;
 
 namespace HanabiMM
 {
-    public class Pile
+    public interface IPile
     {
-        private List<HeldCard> pile;
+        void                AddCard(Card newCard);
+        void                AddCards(IEnumerable<Card> newCards);
+        int                 Count();
+        IEnumerable<Card>   GetCards();
+    }
+
+    public class Pile : IPile
+    {
+        private List<Card> pile;
+        private const string Delimiter = " ";
 
         public Pile()
         {
-            pile = new List<HeldCard>();
+            pile = new List<Card>();
         }
 
-        public void AddCard(HeldCard newCard)
+        public void AddCard(Card newCard)
         {
             pile.Add(newCard);
         }
 
-        public void AddCards(List<HeldCard> newCards)
+        public void AddCards(IEnumerable<Card> newCards)
         {
-            foreach (HeldCard card in newCards)
+            foreach (var card in newCards)
                 AddCard(card);
         }
 
@@ -28,17 +37,28 @@ namespace HanabiMM
             return pile.Count;
         }
 
-        public HeldCard GetCardAtPosition(int position)
+        private bool IsValidPosition(int position)
         {
-            return pile[position];
+            return (position >= 0) && (position < pile.Count);
         }
 
-        public void RemoveCardAtPosition(int position)
+        public Card this[int cardHandPosition]
         {
-            pile.RemoveAt(position);
+            get
+            {
+                if (IsValidPosition(cardHandPosition))
+                    return pile[cardHandPosition];
+                return null;
+            }
         }
 
-        public List<HeldCard> GetCards()
+        public void RemoveCardAtPosition(int cardHandPosition)
+        {
+            if (IsValidPosition(cardHandPosition))
+                pile.RemoveAt(cardHandPosition);
+        }
+
+        public IEnumerable<Card> GetCards()
         {
             return pile;
         }
@@ -47,7 +67,7 @@ namespace HanabiMM
         {
             string result = "";
             foreach (var card in pile)
-                result += card + " ";
+                result += card + Delimiter;
 
             return string.Format("{0}", result);
         }

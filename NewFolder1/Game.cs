@@ -5,60 +5,46 @@ using System.Linq;
 
 namespace HanabiMM
 {
-    public enum ActionType
+    public static class HeldCardExtension
     {
-        NoAction,
-        StartGame,
-        Play,
-        Drop,
-        ClueRank,
-        ClueSuit
-    }
-
-    public enum Suit
-    {
-        None = 0,
-        Red,
-        Green,
-        Blue,
-        White,
-        Yellow
-    }
-
-    public enum Rank
-    {
-        Zero = 0,
-        One,
-        Two,
-        Three,
-        Four,
-        Five
-    }
-
-    public static class CardExtension
-    {
-        public static bool isKnownRank(this HeldCard card)
+        public static bool IsKnownRank(this HeldCard card)
         {
-            return CountTruePositions(card.rankBits);
+            return GetPossibleRanks(card).ToList().Count == 0;
         }
 
-        public static bool isKnownColor(this HeldCard card)
+        public static bool IsKnownColor(this HeldCard card)
         {
-            return CountTruePositions(card.suitBits);
+            return GetPossibleSuits(card).ToList().Count == 0;
         }
 
-        public static bool CountTruePositions(BitArray bitArray)
+        public static IEnumerable<Suit> GetPossibleSuits(this HeldCard card)
         {
-            var countElementsEqualTrue = 0;
-            foreach (bool bit in bitArray)
-                if (bit)
-                    countElementsEqualTrue++;
-            return (countElementsEqualTrue == 1);
+            return GetPossibleCardCharacteristic<Suit>(card.suitBits);
+        }
+
+        public static IEnumerable<Rank> GetPossibleRanks(this HeldCard card)
+        {
+            return GetPossibleCardCharacteristic<Rank>(card.rankBits);
+        }
+
+        public static IEnumerable<T> GetPossibleCardCharacteristic<T>(BitArray bitArray)
+        {
+            var result = new List<T>();
+            var enumValues = Enum.GetValues(typeof(T)).GetEnumerator();
+            var i = 0;
+
+            enumValues.MoveNext();          // miss first element (Zero or None)
+            while (enumValues.MoveNext())
+            {
+                if (bitArray[i++])
+                    result.Add((T)enumValues.Current);
+            }
+            return result;
         }
 
         public static bool isKnownCard(this HeldCard card)
         {
-            return isKnownRank(card) && isKnownColor(card);
+            return IsKnownRank(card) && IsKnownColor(card);
         }
     }
 
@@ -91,40 +77,52 @@ namespace HanabiMM
 
     public class HeldCard : Card
     {
-        public BitArray suitBits { get; set; }
-        public BitArray rankBits { get; set; }
+        public  BitArray     suitBits { get; private set; }
+        public  BitArray     rankBits { get; private set; }
+        private const int    SuitCount = 5;
 
-        public HeldCard(Suit suit, Rank rank)
-            :base(suit, rank)
+        public HeldCard(Suit suit, Rank rank) : base(suit, rank)
         {
-            suitBits = new BitArray(5, true);
-            rankBits = new BitArray(5, true);
+            suitBits = new BitArray(SuitCount, true);
+            rankBits = new BitArray(SuitCount, true);
         }
 
-        public void openSuit(Suit suitCard)
+        private int GetPositionFromRank(Rank rank)
         {
-            if (this.isKnownColor())
+            return (int)rank - 1;
+        }
+
+        private int GetPositionFromSuit(Suit suit)
+        {
+            return (int)suit - 1;
+        }
+
+        public void OpenSuit(Suit suitCard)
+        {
+            Open(GetPositionFromSuit(suitCard), suitBits);
+        }
+
+        public void OpenRank(Rank rankCard)
+        {
+            Open(GetPositionFromRank(rankCard), rankBits);
+        }
+
+        private void Open(int position, BitArray bitArray)
+        {
+            if (this.IsKnownColor())
                 return;
-            suitBits.SetAll(false);
-            suitBits.Set((int)suitCard - 1, true);
+            bitArray.SetAll(false);
+            bitArray.Set(position, true);
         }
 
-        public void closeSuit(Suit suitCard)
+        public void CloseSuit(Suit suitCard)
         {
-            suitBits.Set((int)suitCard - 1, false);
+            suitBits.Set(GetPositionFromSuit(suitCard), false);
         }
 
-        public void closeRank(Rank rankCard)
+        public void CloseRank(Rank rankCard)
         {
-            rankBits.Set((int)rankCard - 1, false);
-        }
-
-        public void openRank(Rank rankCard)
-        {
-            if (this.isKnownRank())
-                return;
-            rankBits.SetAll(false);
-            rankBits.Set((int)rankCard - 1, true);
+            rankBits.Set(GetPositionFromRank(rankCard), false);
         }
     }
 
@@ -134,11 +132,7 @@ namespace HanabiMM
 {
     public class Converter
     {
-        private string ALL = "NRGBWY";
-
-        public Converter()
-        {
-        }
+        private const string AllSuits = "NRGBWY";
 
         public IEnumerable<Card> GetCardsFromString(string [] cards)
         {
@@ -150,7 +144,7 @@ namespace HanabiMM
 
         public Card GetCardFromString(string cardRepresent)
         {
-            var suit = (Suit)Enum.Parse(typeof(Suit), ALL.IndexOf(cardRepresent[0]).ToString());
+            var suit = (Suit)Enum.Parse(typeof(Suit), AllSuits.IndexOf(cardRepresent[0]).ToString());
             var rank = (Rank)Enum.Parse(typeof(Rank), cardRepresent[1].ToString());
             return new Card(suit, rank);
         }
@@ -158,21 +152,31 @@ namespace HanabiMM
 
     public class Game
     {
-        private const int CountCardsOnHand = 5;
-        private Deck deck;
-        private List<Player> players;
-        private Board board;
+        private const int       CountCardsOnHand = 5;
+        private IDeck           deck;
+        private List<Player>    players;
+        private IBoard          hanabiBoard;
 
-        private int currentIndexOfPlayer;
-        private int risks;
-        private int cards;
-        private int score;
-        private int turn;
-        private bool notFinished;
+        private int             currentIndexOfPlayer;
+        private int             risks;
+        private int             cards;
+        private int             score;
+        private int             turn;
+        private bool            finished;
+        private bool            missInput;
+        private readonly int    countPlayers;
+
         private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
-        private bool finished;
+        
 
-        public Dictionary<ActionType, Func<CommandInfo, bool>> CreateDictionaryOptions()
+        public Game(int countPlayers)
+        {
+            this.countPlayers = countPlayers;
+            optionsInvoker = CreateDictionaryOptions();
+            Init();
+        }
+
+        private Dictionary<ActionType, Func<CommandInfo, bool>> CreateDictionaryOptions()
         {
             var dictionary = new Dictionary<ActionType, Func<CommandInfo, bool>>
             {
@@ -185,84 +189,81 @@ namespace HanabiMM
             return dictionary;
         }
 
-        public void Init()
+        private void Init()
         {
-            board = new Board();
-            players = Enumerable.Range(0, 2).Select(i => new Player(i, board)).ToList();
-            deck = new Deck();
-            turn = 0;
-            finished = notFinished = false;
-            cards = 0;
-            score = 0;
-            risks = 0;
+            hanabiBoard     = new HanabiBoard();
+            players         = Enumerable.Range(0, countPlayers).Select(i => new Player(i, hanabiBoard)).ToList();
+            deck            = new Deck();
+            finished        = false;
+            missInput       = false;
+            cards = score = risks = turn = 0;
             currentIndexOfPlayer = 1;
         }
 
-        public Player GetCurrentPlayer()
+        private Player GetCurrentPlayer()
         {
             return players[currentIndexOfPlayer];
         }
 
-        public Player GetNextPlayer()
+        private Player GetNextPlayer()
         {
             return players[NextPlayer()];
         }
 
-        public int NextPlayer()
+        private void ChangeTurn()
         {
-            var value = (currentIndexOfPlayer + 1) % players.Count;
+            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % countPlayers;
+        }
+
+        private int NextPlayer()
+        {
+            var value = (currentIndexOfPlayer + 1) % countPlayers;
             return value;
         }
 
-        public Game(int countPlayers)
-        {
-            optionsInvoker = CreateDictionaryOptions();
-            Init();
-        }
-
-        public bool StartNewGame(CommandInfo commandInfo)
+        private bool StartNewGame(CommandInfo commandInfo)
         {
             Init();
             var cardConverter = new Converter();
-            deck.AddCards(cardConverter.GetCardsFromString(commandInfo.deckCards).ToList());
+            deck.AddCards(cardConverter.GetCardsFromString(commandInfo.DeckCards).ToList());
 
-            for (var i = 0; i < 2; ++i)
-                players[i].AddCards(cardConverter.GetCardsFromString(commandInfo.playerCards[i]).ToList());
+            for (var i = 0; i < countPlayers; ++i)
+                players[i].AddCards(cardConverter.GetCardsFromString(commandInfo.PlayerCards.ToArray()[i]).ToList());
 
-            return true;
-        }
-
-        public void IncreaseGameParameters()
-        {
-            score = board.GetScore();
-            cards = board.GetDepth();
-        }
-
-        public bool ProcessPlay(CommandInfo action)
-        {
-            var player = GetCurrentPlayer();
-
-            var currentCard = player.PlayCard(action.cardPositionsInHand[0]);
-            if (board.CardCanPlay(currentCard.Item1))
-            {
-                if (!currentCard.Item2)
-                    risks++;
-                board.AddCard(currentCard.Item1);
-                IncreaseGameParameters();
-
-                return CanGiveCardToPlayer(player) && !board.BoardIsFull();
-            }
             return false;
         }
 
-        public bool ProcessDrop(CommandInfo action)
+        private void IncreaseGameParameters()
         {
-            var player = GetCurrentPlayer();
-            player.DropCard(action.cardPositionsInHand[0]);
-            return CanGiveCardToPlayer(player);
+            score = hanabiBoard.GetScore();
+            cards = hanabiBoard.GetDepth();
         }
 
-        public bool CanGiveCardToPlayer(Player player)
+        private bool ProcessPlay(CommandInfo parsedCommandionType)
+        {
+            var player = GetCurrentPlayer();
+
+            var currentCard = player.PlayCard(parsedCommandionType.CardPositionInHand);
+            if (hanabiBoard.CardCanPlay(currentCard.Item1))
+            {
+                if (!currentCard.Item2)
+                    risks++;
+                hanabiBoard.AddCard(currentCard.Item1);
+                IncreaseGameParameters();
+
+                return !(CanGiveCardToPlayer(player) && !((HanabiBoard)hanabiBoard).BoardIsFull());
+            }
+            return true;
+        }
+
+        private bool ProcessDrop(CommandInfo parsedCommandionType)
+        {
+            var player = GetCurrentPlayer();
+            player.DropCard(parsedCommandionType.CardPositionInHand);
+            return !CanGiveCardToPlayer(player);
+        }
+
+        private bool CanGiveCardToPlayer(Player player)
         {
             var topDeckCard = deck.GetTop();
 
@@ -272,31 +273,46 @@ namespace HanabiMM
             return !(deck.IsEmpty() || topDeckCard == null);
         }
 
-        public bool ProcessSuitHint(CommandInfo act)
+        private bool ProcessSuitHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var suitCardsPositions = player.GetAllPositionsOfSuitCards(act.hint.suit).ToList();
-            if (!suitCardsPositions.SequenceEqual(act.hint.pos))
-                return false;
+            var suitCardsPositions = player.GetAllPositionsOfSuit(parsedCommand.Hint.Suit).ToList();
+            if (!suitCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
+                return true;
 
-            player.DeduceSuit(act.hint.suit, act.hint.pos);
-            return true;
+            player.DeduceSuit(parsedCommand.Hint.Suit, parsedCommand.Hint.CardHandPositions);
+            return false;
         }
 
-        public bool ProcessRankHint(CommandInfo act)
+        private bool ProcessRankHint(CommandInfo parsedCommand)
         {
-            var player = GetNextPlayer();
-            var rankCardsPositions = player.GetAllPositionsOfRankCards(act.hint.rank).ToList();
-            if (!rankCardsPositions.SequenceEqual(act.hint.pos))
-                return false;
+            var player              = GetNextPlayer();
+            var rankCardsPositions  = player.GetAllPositionsOfRank(parsedCommand.Hint.Rank).ToList();
+            if (!rankCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
+                return true;
 
-            player.DeduceRank(act.hint.rank, act.hint.pos);
-            return true;
+            player.DeduceRank(parsedCommand.Hint.Rank, parsedCommand.Hint.CardHandPositions);
+            return false;
+        }
+
+        private bool Execute(CommandInfo parsedInfo)
+        {
+            foreach (var value in optionsInvoker)
+                if (parsedInfo.ActionType == value.Key)
+                {
+                    if (finished && value.Key != ActionType.StartGame)
+                    {
+                        missInput = true;
+                        return true;
+                    }
+                    return optionsInvoker[value.Key].Invoke(parsedInfo);
+                }
+            return false;
         }
 
         public void Run()
         {
-            Parser Parser = new Parser();
+            var parser  = new Parser();
             string line = null;
             do
             {
@@ -304,17 +320,16 @@ namespace HanabiMM
                 line = Console.ReadLine();
                 if (line == null)
                     break;
-                var ParsedInfo = Parser.Parse(line);
 
-                foreach (var value in optionsInvoker)
-                    if (ParsedInfo.action == value.Key)
-                        notFinished = optionsInvoker[value.Key].Invoke(ParsedInfo);
+                finished = Execute(parser.Parse(line));
 
-                currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
-                if (!notFinished)
+                if (missInput)
+                    continue;
+
+                ChangeTurn();
+                if (finished)
                     Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
-            } while (line != null);
-            finished = true;
+                } while (line != null);
         }
     }
 };

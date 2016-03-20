@@ -101,31 +101,44 @@ namespace HanabiMM
     }
 
     */
+
+
+    public enum ActionType
+    {
+        NoAction,
+        StartGame,
+        Play,
+        Drop,
+        ClueRank,
+        ClueSuit
+    }
+
+    public enum Suit
+    {
+        None = 0,
+        Red,
+        Green,
+        Blue,
+        White,
+        Yellow
+    }
+
+    public enum Rank
+    {
+        Zero = 0,
+        One,
+        Two,
+        Three,
+        Four,
+        Five
+    }
+
     class Program
     {
         static void Main(string[] args)
         {
-            Game newGame = new Game(2);
-            newGame.Run();
-
-            
-            Game newGame1 = new Game(2);
-            newGame1.Run();
-            
-            
-            Game newGame2 = new Game(2);
-            newGame2.Run();
-            
-            
-            Game newGame3 = new Game(2);
-            newGame3.Run();
-
-            
-            
-            Game newGame4 = new Game(2);
-            newGame4.Run();
-            
-            
+            Game game = new Game(2);
+            game.Run();
         }
     }
 }

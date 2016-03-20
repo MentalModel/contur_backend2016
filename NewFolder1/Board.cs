@@ -2,15 +2,24 @@
 
 namespace HanabiMM
 {
-    public class Board
+    public interface IBoard
+    {
+        void    AddCard(Card card);
+        bool    CardCanPlay(Card card);
+        int     GetScore();
+        int     GetDepth();
+    }
+
+    public class HanabiBoard : IBoard
     {
         private Card[]          boardCards;
-        private const string    DELIMITER = " ";
-        private const int       SUIT_COUNT = 5;
+        private const string    Delimiter = " ";
+        private const int       SuitCount = 5;
+        private const int       MaxCardsCount = 25;
 
-        public Board()
+        public HanabiBoard()
         {
-            boardCards = new Card[SUIT_COUNT];
+            boardCards = new Card[SuitCount];
             InitBoard();
         }
 
@@ -25,14 +34,25 @@ namespace HanabiMM
             return ((int)suit - 1);
         }
 
+        private bool IsValidBoardPosition(int position)
+        {
+            return (position >= 0) && (position < boardCards.Length);
+        }
+
         public void AddCard(Card card)
         {
-            boardCards[GetIndexFromSuit(card.suit)] = card;
+            var position = GetIndexFromSuit(card.suit);
+            if (IsValidBoardPosition(position))
+                boardCards[position] = card;
         }
 
         public bool CardCanPlay(Card card)
         {
-            var topRank = boardCards[GetIndexFromSuit(card.suit)].rank;
+            var position = GetIndexFromSuit(card.suit);
+            if (!IsValidBoardPosition(position))
+                return false;
+
+            var topRank = boardCards[position].rank;
             return (topRank + 1 == card.rank);
         }
 
@@ -51,14 +71,14 @@ namespace HanabiMM
 
         public bool BoardIsFull()
         {
-            return (GetDepth() == 25);
+            return (GetDepth() == MaxCardsCount);
         }
 
         public override string ToString()
         {
             string result = "";
             foreach (var card in boardCards)
-                result += card + DELIMITER;
+                result += card + Delimiter;
 
             return string.Format("{0}", result);
         }

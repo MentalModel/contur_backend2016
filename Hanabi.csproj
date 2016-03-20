@@ -58,7 +58,7 @@
     <Compile Include="NewFolder1\Board.cs" />
     <Compile Include="NewFolder1\Deck.cs" />
     <Compile Include="NewFolder1\Game.cs" />
-    <Compile Include="Parser.cs" />
+    <Compile Include="NewFolder1\Parser.cs" />
     <Compile Include="NewFolder1\Pile.cs" />
     <Compile Include="NewFolder1\Player.cs" />
     <Compile Include="NewFolder1\Program.cs" />
