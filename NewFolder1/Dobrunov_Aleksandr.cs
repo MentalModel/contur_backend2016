@@ -313,50 +313,6 @@ namespace Hanabi
         }
     }
 
-    public interface IDeck
-    {
-        void AddCard(Card card);
-        void AddCards(IEnumerable<Card> cards);
-        bool IsEmpty();
-        Card GetTop();
-    }
-
-    public class Deck : IDeck
-    {
-        private List<Card> cards;
-
-        public Deck()
-        {
-            cards = new List<Card>();
-        }
-
-        public Card GetTop()
-        {
-            if (cards.Count == 0)
-                return null;
-
-            var card = cards[0];
-            cards.RemoveAt(0);
-            return card;
-        }
-
-        public void AddCard(Card card)
-        {
-            cards.Add(card);
-        }
-
-        public void AddCards(IEnumerable<Card> cards)
-        {
-            foreach (var card in cards)
-                AddCard(card);
-        }
-
-        public bool IsEmpty()
-        {
-            return (cards.Count == 0);
-        }
-    }
-
     public interface IBoard
     {
         void AddCard(Card card);
@@ -550,7 +506,7 @@ namespace Hanabi
     public class Game
     {
         private const int CountCardsOnHand = 5;
-        private IDeck deck;
+        private List<Card> deck;
         private List<IPlayer> players;
         private IBoard hanabiBoard;
 
@@ -591,7 +547,7 @@ namespace Hanabi
             hanabiBoard = new HanabiBoard();
             players = new List<IPlayer>();
             AddPlayersToGame();
-            deck = new Deck();
+            deck = new List<Card>();
             finished = false;
             missInput = false;
             cards = score = risks = turn = 0;
@@ -634,7 +590,7 @@ namespace Hanabi
             players[0].AddCards(allCards.Take(5));
             players[1].AddCards(allCards.Skip(5).Take(5));
 
-            deck.AddCards(allCards.Skip(10));
+            deck.AddRange(allCards.Skip(10));
 
             return false;
         }
@@ -671,12 +627,13 @@ namespace Hanabi
 
         private bool CanGiveCardToPlayer(HanabiPlayer player)
         {
-            var topDeckCard = deck.GetTop();
+            if (deck.Count != 0)
+            {
+                player.AddCard(deck[0]);
+                deck.RemoveAt(0);
+            }
 
-            if (topDeckCard != null)
-                player.AddCard(topDeckCard);
-
-            return !(deck.IsEmpty() || topDeckCard == null);
+            return deck.Count != 0;
         }
 
         private bool ProcessSuitHint(CommandInfo parsedCommand)
@@ -715,7 +672,7 @@ namespace Hanabi
         {
             foreach (var value in optionsInvoker)
             {
-                if (parsedInfo.actionType == value.Key)
+                if (parsedInfo.actionType.Equals(value.Key))
                 {
                     if (ShouldMissCommand(value.Key))
                         return true;
