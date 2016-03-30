@@ -881,35 +881,11 @@ namespace Hanabi
         }
     }
 
-    public enum ActionType
-    {
-        NoAction,
-        StartGame,
-        Play,
-        Drop,
-        ClueRank,
-        ClueSuit
-    }
+    public enum ActionType { NoAction, StartGame, Play, Drop, ClueRank, ClueSuit }
 
-    public enum Suit
-    {
-        None = 0,
-        Red,
-        Green,
-        Blue,
-        White,
-        Yellow
-    }
+    public enum Suit { None, Red, Green, Blue, White, Yellow }
 
-    public enum Rank
-    {
-        Zero = 0,
-        One,
-        Two,
-        Three,
-        Four,
-        Five
-    }
+    public enum Rank { Zero, One, Two, Three, Four, Five }
 
     class Program
     {
