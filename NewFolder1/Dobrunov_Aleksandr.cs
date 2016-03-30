@@ -94,7 +94,7 @@ namespace Hanabi
         {
             HeldCard card = playPile[index] as HeldCard;
             if (card != null)
-                card.CloseRank(rank);
+                card.ExcludeRank(rank);
         }
 
         private void OpenNthSuit(int index, Suit suitCard)
@@ -108,7 +108,7 @@ namespace Hanabi
         {
             HeldCard card = playPile[index] as HeldCard;
             if (card != null)
-                card.CloseSuit(suitCard);
+                card.ExcludeSuit(suitCard);
         }
 
         private IEnumerable<Card> GetDecartusMulti(Card turnCard)
@@ -116,9 +116,8 @@ namespace Hanabi
             HeldCard card = turnCard as HeldCard;
             if (card == null)
                 return null;
-            var cardHandPossibleSuits = card.GetPossibleSuits();
-            var cardHandPossibleRanks = card.GetPossibleRanks();
-            return cardHandPossibleSuits.SelectMany(x => cardHandPossibleRanks, (x, y) => new Card(x, y)).ToList();
+
+            return card.possibleSuits.SelectMany(x => card.possibleRanks, (x, y) => new Card(x, y)).ToList();
         }
 
         private IEnumerable<Card> GetPossibleCardsForTurn(Card turnCard)
@@ -270,7 +269,6 @@ namespace Hanabi
     public class HanabiBoard : IBoard
     {
         private Card[] boardCards;
-        private const string Delimiter = " ";
         private const int SuitCount = 5;
         private const int MaxCardsCount = 25;
 
@@ -291,23 +289,15 @@ namespace Hanabi
             return ((int)suit - 1);
         }
 
-        private bool IsValidBoardPosition(int position)
-        {
-            return (position >= 0) && (position < boardCards.Length);
-        }
-
         public void AddCard(Card card)
         {
             var position = GetIndexFromSuit(card.suit);
-            if (IsValidBoardPosition(position))
-                boardCards[position] = card;
+            boardCards[position] = card;
         }
 
         public bool CardCanPlay(Card card)
         {
             var position = GetIndexFromSuit(card.suit);
-            if (!IsValidBoardPosition(position))
-                return false;
 
             var topRank = boardCards[position].rank;
             return (topRank + 1 == card.rank);
@@ -345,96 +335,55 @@ namespace Hanabi
 
     public class HeldCard : Card
     {
-        public BitArray suitBits { get; private set; }
-        public BitArray rankBits { get; private set; }
-        private const int SuitCount = 5;
+        public List<Suit> possibleSuits { get; private set; }
+        public List<Rank> possibleRanks { get; private set; }
 
         public HeldCard(Suit suit, Rank rank) : base(suit, rank)
         {
-            suitBits = new BitArray(SuitCount, true);
-            rankBits = new BitArray(SuitCount, true);
+            possibleSuits = Enum.GetValues(typeof(Suit)).OfType<Suit>().ToList();
+            possibleRanks = Enum.GetValues(typeof(Rank)).OfType<Rank>().ToList();
+
+            possibleSuits.Remove(Suit.None);
+            possibleRanks.Remove(Rank.Zero);
         }
 
-        private int GetPositionFromRank(Rank rank)
+        public void OpenSuit(Suit suit)
         {
-            return (int)rank - 1;
+            possibleSuits.Clear();
+            possibleSuits.Add(suit);
         }
 
-        private int GetPositionFromSuit(Suit suit)
+        public void OpenRank(Rank rank)
         {
-            return (int)suit - 1;
+            possibleRanks.Clear();
+            possibleRanks.Add(rank);
         }
 
-        public void OpenSuit(Suit suitCard)
+        public void ExcludeSuit(Suit suit)
         {
-            Open(GetPositionFromSuit(suitCard), suitBits);
+            possibleSuits.Remove(suit);
         }
 
-        public void OpenRank(Rank rankCard)
+        public void ExcludeRank(Rank rank)
         {
-            Open(GetPositionFromRank(rankCard), rankBits);
+            possibleRanks.Remove(rank);
         }
 
-        private void Open(int position, BitArray bitArray)
+        public bool IsKnownRank()
         {
-            if (this.IsKnownColor())
-                return;
-            bitArray.SetAll(false);
-            bitArray.Set(position, true);
+            return possibleRanks.Count == 0;
         }
 
-        public void CloseSuit(Suit suitCard)
+        public bool IsKnownSuit()
         {
-            suitBits.Set(GetPositionFromSuit(suitCard), false);
+            return possibleSuits.Count == 0;
         }
 
-        public void CloseRank(Rank rankCard)
+        public bool IsKnownCard()
         {
-            rankBits.Set(GetPositionFromRank(rankCard), false);
-        }
-    }
-
-    public static class HeldCardExtension
-    {
-        public static bool IsKnownRank(this HeldCard card)
-        {
-            return GetPossibleRanks(card).ToList().Count == 0;
+            return IsKnownSuit() && IsKnownRank();
         }
 
-        public static bool IsKnownColor(this HeldCard card)
-        {
-            return GetPossibleSuits(card).ToList().Count == 0;
-        }
-
-        public static IEnumerable<Suit> GetPossibleSuits(this HeldCard card)
-        {
-            return GetPossibleCardCharacteristic<Suit>(card.suitBits);
-        }
-
-        public static IEnumerable<Rank> GetPossibleRanks(this HeldCard card)
-        {
-            return GetPossibleCardCharacteristic<Rank>(card.rankBits);
-        }
-
-        public static IEnumerable<T> GetPossibleCardCharacteristic<T>(BitArray bitArray)
-        {
-            var result = new List<T>();
-            var enumValues = Enum.GetValues(typeof(T)).GetEnumerator();
-            var i = 0;
-
-            enumValues.MoveNext();          // miss first element (Zero or None)
-            while (enumValues.MoveNext())
-            {
-                if (bitArray[i++])
-                    result.Add((T)enumValues.Current);
-            }
-            return result;
-        }
-
-        public static bool IsKnownCard(this HeldCard card)
-        {
-            return IsKnownRank(card) && IsKnownColor(card);
-        }
     }
 
     public class CardValueParser
@@ -456,13 +405,8 @@ namespace Hanabi
         private List<IPlayer> players;
         private IBoard hanabiBoard;
 
-        private int currentIndexOfPlayer;
-        private int risks;
-        private int cards;
-        private int score;
-        private int turn;
-        private bool finished;
-        private bool missInput;
+        private int currentIndexOfPlayer, risks, cards, score, turn;
+        private bool finished, missInput;
         private readonly int countPlayers;
 
         private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
