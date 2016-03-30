@@ -198,7 +198,6 @@ namespace Hanabi
     public class Pile : IPile
     {
         private List<Card> pile;
-        private const string Delimiter = " ";
 
         public Pile()
         {
@@ -221,25 +220,17 @@ namespace Hanabi
             return pile.Count;
         }
 
-        private bool IsValidPosition(int position)
-        {
-            return (position >= 0) && (position < pile.Count);
-        }
-
         public Card this[int cardHandPosition]
         {
             get
             {
-                if (IsValidPosition(cardHandPosition))
-                    return pile[cardHandPosition];
-                return null;
+                return pile[cardHandPosition];
             }
         }
 
         public void RemoveCardAtPosition(int cardHandPosition)
         {
-            if (IsValidPosition(cardHandPosition))
-                pile.RemoveAt(cardHandPosition);
+            pile.RemoveAt(cardHandPosition);
         }
 
         public IEnumerable<Card> GetCards()
