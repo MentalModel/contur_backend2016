@@ -241,43 +241,17 @@ namespace Hanabi
 
     public class Hint
     {
-        public  int[] cardHandPositions;
-        public  Rank rank;
-        public  Suit suit;
+        public  int[]   cardHandPositions;
+        public  Rank    rank;
+        public  Suit    suit;
     }
 
     public class CommandInfo
     {
-        private readonly int cardPositionInHand;
-        private readonly ActionType actionType;
-        private readonly Hint hint;
-        private readonly List<string[]> playerCards;
-        private readonly string[] deckCards;
-
-        public int CardPositionInHand { get { return cardPositionInHand; } }
-        public ActionType ActionType { get { return actionType; } }
-        public Hint Hint { get { return hint; } }
-        public IEnumerable<string[]> PlayerCards { get { return playerCards; } }
-        public string[] DeckCards { get { return deckCards; } }
-
-        public CommandInfo(int cardPosition, ActionType action)
-        {
-            cardPositionInHand = cardPosition;
-            actionType = action;
-        }
-
-        public CommandInfo(ActionType action, Hint hintToUser)
-        {
-            actionType = action;
-            hint = hintToUser;
-        }
-
-        public CommandInfo(IEnumerable<string[]> playerCards, string[] deckCards)
-        {
-            this.playerCards = playerCards.ToList();
-            this.deckCards = deckCards;
-            actionType = ActionType.StartGame;
-        }
+        public  int         cardPosition;
+        public  ActionType  actionType;
+        public  Hint        hint;
+        public  List<Card>  cards;
     }
 
     public interface IParser
@@ -287,7 +261,8 @@ namespace Hanabi
 
     public class Parser : IParser
     {
-        private const int STARTS_AT = 5;
+        private const int   MissNonCards    = 5;
+        private const char  Delimiter       = ' ';
         private readonly Dictionary<string, Func<string[], CommandInfo>> optionsInvoker;
 
         public Parser()
@@ -310,62 +285,43 @@ namespace Hanabi
 
         public CommandInfo Parse(string inputString)
         {
-            if (inputString == null)
-                return null;
-
             foreach (var value in optionsInvoker)
                 if (inputString.StartsWith(value.Key))
-                {
-                    var tokens = inputString.Split(' ');
-                    return optionsInvoker[value.Key].Invoke(tokens);
-                }
+                    return optionsInvoker[value.Key].Invoke(inputString.Split(Delimiter));
             return null;
         }
 
         public CommandInfo ParseStartNewGame(string[] tokens)
         {
-            int decksCardCount = tokens.Length - 5 * 3;
-
-            string[] firstPlayerCards = new string[5];
-            Array.Copy(tokens, 5, firstPlayerCards, 0, 5);
-
-            string[] secondPlayerCards = new string[5];
-            Array.Copy(tokens, 10, secondPlayerCards, 0, 5);
-
-            string[] cards = new string[decksCardCount];
-            Array.Copy(tokens, 15, cards, 0, decksCardCount);
-
-            return new CommandInfo(new List<string[]> { firstPlayerCards, secondPlayerCards }, cards);
+            var cards = tokens.Skip(MissNonCards).Select(card => new CardValueParser().Parse(card));
+            return new CommandInfo { cards = cards.ToList(), actionType = ActionType.StartGame };
         }
 
         public CommandInfo ParsePlay(string[] tokens)
         {
-            return new CommandInfo(int.Parse(tokens[2]), ActionType.Play);
+            return new CommandInfo { cardPosition = int.Parse(tokens[2]), actionType = ActionType.Play };
         }
 
         public CommandInfo ParseDrop(string[] tokens)
         {
-            return new CommandInfo(int.Parse(tokens[2]), ActionType.Drop);
+            return new CommandInfo { cardPosition = int.Parse(tokens[2]), actionType = ActionType.Drop };
         }
 
         public CommandInfo ParseSuitHint(string[] tokens)
         {
             var suit = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
-            return new CommandInfo(ActionType.ClueSuit, new Hint { suit = suit, cardHandPositions = GetCardsPositionInHand(tokens).ToArray() });
+            return new CommandInfo { actionType = ActionType.ClueSuit, hint = new Hint { suit = suit, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
         }
 
         public CommandInfo ParseRankHint(string[] tokens)
         {
             var rank = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
-            return new CommandInfo(ActionType.ClueRank, new Hint { rank = rank, cardHandPositions =  GetCardsPositionInHand(tokens).ToArray() });
+            return new CommandInfo { actionType = ActionType.ClueRank, hint = new Hint { rank = rank, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
         }
 
-        public IEnumerable<int> GetCardsPositionInHand(string[] tokens)
+        public IEnumerable<int> ParseCardPositions(string[] tokens)
         {
-            var result = new List<int>();
-            for (int i = STARTS_AT, countTokens = tokens.Length; i < countTokens; ++i)
-                result.Add(int.Parse(tokens[i]));
-            return result;
+            return tokens.Skip(MissNonCards).Select(w => int.Parse(w));
         }
     }
 
@@ -591,19 +547,11 @@ namespace Hanabi
         }
     }
 
-    public class CardConverter
+    public class CardValueParser
     {
         private const string AllSuits = "NRGBWY";
 
-        public IEnumerable<Card> GetCardsFromString(string[] cards)
-        {
-            var result = new List<Card>();
-            foreach (var card in cards)
-                result.Add(GetCardFromString(card));
-            return result;
-        }
-
-        public Card GetCardFromString(string cardRepresent)
+        public Card Parse(string cardRepresent)
         {
             var suit = (Suit)Enum.Parse(typeof(Suit), AllSuits.IndexOf(cardRepresent[0]).ToString());
             var rank = (Rank)Enum.Parse(typeof(Rank), cardRepresent[1].ToString());
@@ -693,11 +641,12 @@ namespace Hanabi
         private bool StartNewGame(CommandInfo commandInfo)
         {
             Init();
-            var cardConverter = new CardConverter();
-            deck.AddCards(cardConverter.GetCardsFromString(commandInfo.DeckCards).ToList());
+            var allCards = commandInfo.cards;
 
-            for (var i = 0; i < countPlayers; ++i)
-                players[i].AddCards(cardConverter.GetCardsFromString(commandInfo.PlayerCards.ToArray()[i]).ToList());
+            players[0].AddCards(allCards.Take(5));
+            players[1].AddCards(allCards.Skip(5).Take(5));
+
+            deck.AddCards(allCards.Skip(10));
 
             return false;
         }
@@ -712,7 +661,7 @@ namespace Hanabi
         {
             var player = GetCurrentPlayer();
 
-            var currentCard = ((HanabiPlayer)player).PlayCard(parsedCommandionType.CardPositionInHand);
+            var currentCard = ((HanabiPlayer)player).PlayCard(parsedCommandionType.cardPosition);
             if (hanabiBoard.CardCanPlay(currentCard.Item1))
             {
                 if (!currentCard.Item2)
@@ -728,7 +677,7 @@ namespace Hanabi
         private bool ProcessDrop(CommandInfo parsedCommandionType)
         {
             var player = (HanabiPlayer)GetCurrentPlayer();
-            player.DropCard(parsedCommandionType.CardPositionInHand);
+            player.DropCard(parsedCommandionType.cardPosition);
             return !CanGiveCardToPlayer(player);
         }
 
@@ -745,22 +694,22 @@ namespace Hanabi
         private bool ProcessSuitHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.Hint.suit).ToList();
-            if (!suitCardsPositions.SequenceEqual(parsedCommand.Hint.cardHandPositions))
+            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.hint.suit).ToList();
+            if (!suitCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceSuit(parsedCommand.Hint.suit, parsedCommand.Hint.cardHandPositions);
+            ((HanabiPlayer)player).DeduceSuit(parsedCommand.hint.suit, parsedCommand.hint.cardHandPositions);
             return false;
         }
 
         private bool ProcessRankHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var rankCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.Hint.rank).ToList();
-            if (!rankCardsPositions.SequenceEqual(parsedCommand.Hint.cardHandPositions))
+            var rankCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.hint.rank).ToList();
+            if (!rankCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceRank(parsedCommand.Hint.rank, parsedCommand.Hint.cardHandPositions);
+            ((HanabiPlayer)player).DeduceRank(parsedCommand.hint.rank, parsedCommand.hint.cardHandPositions);
             return false;
         }
 
@@ -778,7 +727,7 @@ namespace Hanabi
         {
             foreach (var value in optionsInvoker)
             {
-                if (parsedInfo.ActionType == value.Key)
+                if (parsedInfo.actionType == value.Key)
                 {
                     if (ShouldMissCommand(value.Key))
                         return true;
