@@ -14,31 +14,29 @@ namespace Hanabi
 
     public class HanabiPlayer : IPlayer
     {
-        private IPile playPile;
+        private List<Card> playPile;
         private IBoard hanabiBoard;
 
         public HanabiPlayer(IBoard playBoard)
         {
-            playPile = new Pile();
+            playPile = new List<Card>();
             hanabiBoard = (HanabiBoard)playBoard;
         }
 
         public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
         {
-            var result = playPile.GetCards().ToList();
-            return result.Where(w => (w.suit == suit)).Select(w => result.IndexOf(w));
+            return playPile.Where(w => (w.suit == suit)).Select(w => playPile.IndexOf(w));
         }
 
         public IEnumerable<int> GetAllPositionsOfRank(Rank rank)
         {
-            var result = ((Pile)playPile).GetCards().ToList();
-            return result.Where(w => (w.rank == rank)).Select(w => result.IndexOf(w));
+            return playPile.Where(w => (w.rank == rank)).Select(w => playPile.IndexOf(w));
         }
 
         public Tuple<Card, bool> PlayCard(int cardHandPosition)
         {
-            var card = ((Pile)playPile)[cardHandPosition];
-            ((Pile)playPile).RemoveCardAtPosition(cardHandPosition);
+            var card = playPile[cardHandPosition];
+            playPile.RemoveAt(cardHandPosition);
 
             return Tuple.Create(card, IsRiskyTurn(card));
         }
@@ -71,7 +69,7 @@ namespace Hanabi
 
         public void AddCard(Card card)
         {
-            playPile.AddCard(new HeldCard(card.suit, card.rank));
+            playPile.Add(new HeldCard(card.suit, card.rank));
         }
 
         public void AddCards(IEnumerable<Card> cards)
@@ -87,28 +85,28 @@ namespace Hanabi
 
         private void OpenNthRank(int index, Rank rank)
         {
-            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            HeldCard card = playPile[index] as HeldCard;
             if (card != null)
                 card.OpenRank(rank);
         }
 
         private void CloseNthRank(int index, Rank rank)
         {
-            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            HeldCard card = playPile[index] as HeldCard;
             if (card != null)
                 card.CloseRank(rank);
         }
 
         private void OpenNthSuit(int index, Suit suitCard)
         {
-            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            HeldCard card = playPile[index] as HeldCard;
             if (card != null)
                 card.OpenSuit(suitCard);
         }
 
         private void CloseNthSuit(int index, Suit suitCard)
         {
-            HeldCard card = ((Pile)playPile)[index] as HeldCard;
+            HeldCard card = playPile[index] as HeldCard;
             if (card != null)
                 card.CloseSuit(suitCard);
         }
@@ -172,58 +170,6 @@ namespace Hanabi
         {
             DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
             DeduceRankForMainCards(rank, cardHandPosition);
-        }
-    }
-
-    public interface IPile
-    {
-        void AddCard(Card newCard);
-        void AddCards(IEnumerable<Card> newCards);
-        int Count();
-        IEnumerable<Card> GetCards();
-    }
-
-    public class Pile : IPile
-    {
-        private List<Card> pile;
-
-        public Pile()
-        {
-            pile = new List<Card>();
-        }
-
-        public void AddCard(Card newCard)
-        {
-            pile.Add(newCard);
-        }
-
-        public void AddCards(IEnumerable<Card> newCards)
-        {
-            foreach (var card in newCards)
-                AddCard(card);
-        }
-
-        public int Count()
-        {
-            return pile.Count;
-        }
-
-        public Card this[int cardHandPosition]
-        {
-            get
-            {
-                return pile[cardHandPosition];
-            }
-        }
-
-        public void RemoveCardAtPosition(int cardHandPosition)
-        {
-            pile.RemoveAt(cardHandPosition);
-        }
-
-        public IEnumerable<Card> GetCards()
-        {
-            return pile;
         }
     }
 
