@@ -185,11 +185,6 @@ namespace Hanabi
             DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
             DeduceRankForMainCards(rank, cardHandPosition);
         }
-
-        public override string ToString()
-        {
-            return string.Format("{0}", playPile);
-        }
     }
 
     public interface IPile
@@ -250,15 +245,6 @@ namespace Hanabi
         public IEnumerable<Card> GetCards()
         {
             return pile;
-        }
-
-        public override string ToString()
-        {
-            string result = "";
-            foreach (var card in pile)
-                result += card + Delimiter;
-
-            return string.Format("{0}", result);
         }
     }
 
@@ -527,15 +513,6 @@ namespace Hanabi
         public bool BoardIsFull()
         {
             return (GetDepth() == MaxCardsCount);
-        }
-
-        public override string ToString()
-        {
-            string result = "";
-            foreach (var card in boardCards)
-                result += card + Delimiter;
-
-            return string.Format("{0}", result);
         }
     }
 
