@@ -241,31 +241,9 @@ namespace Hanabi
 
     public class Hint
     {
-        private readonly int[] cardHandPositions;
-        private readonly Rank rank;
-        private readonly Suit suit;
-
-        public Rank Rank { get { return rank; } }
-        public Suit Suit { get { return suit; } }
-
-        public IEnumerable<int> CardHandPositions
-        {
-            get { return cardHandPositions; }
-        }
-
-        public Hint(Rank rank, IEnumerable<int> storedAtPositions)
-        {
-            this.rank = rank;
-            suit = Suit.None;
-            cardHandPositions = storedAtPositions.ToArray();
-        }
-
-        public Hint(Suit suit, IEnumerable<int> storedAtPositions)
-        {
-            rank = Rank.Zero;
-            this.suit = suit;
-            cardHandPositions = storedAtPositions.ToArray();
-        }
+        public  int[] cardHandPositions;
+        public  Rank rank;
+        public  Suit suit;
     }
 
     public class CommandInfo
@@ -373,13 +351,13 @@ namespace Hanabi
         public CommandInfo ParseSuitHint(string[] tokens)
         {
             var suit = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
-            return new CommandInfo(ActionType.ClueSuit, new Hint(suit, GetCardsPositionInHand(tokens).ToList()));
+            return new CommandInfo(ActionType.ClueSuit, new Hint { suit = suit, cardHandPositions = GetCardsPositionInHand(tokens).ToArray() });
         }
 
         public CommandInfo ParseRankHint(string[] tokens)
         {
-            var color = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
-            return new CommandInfo(ActionType.ClueRank, new Hint(color, GetCardsPositionInHand(tokens).ToList()));
+            var rank = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
+            return new CommandInfo(ActionType.ClueRank, new Hint { rank = rank, cardHandPositions =  GetCardsPositionInHand(tokens).ToArray() });
         }
 
         public IEnumerable<int> GetCardsPositionInHand(string[] tokens)
@@ -767,22 +745,22 @@ namespace Hanabi
         private bool ProcessSuitHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.Hint.Suit).ToList();
-            if (!suitCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
+            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.Hint.suit).ToList();
+            if (!suitCardsPositions.SequenceEqual(parsedCommand.Hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceSuit(parsedCommand.Hint.Suit, parsedCommand.Hint.CardHandPositions);
+            ((HanabiPlayer)player).DeduceSuit(parsedCommand.Hint.suit, parsedCommand.Hint.cardHandPositions);
             return false;
         }
 
         private bool ProcessRankHint(CommandInfo parsedCommand)
         {
             var player = GetNextPlayer();
-            var rankCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.Hint.Rank).ToList();
-            if (!rankCardsPositions.SequenceEqual(parsedCommand.Hint.CardHandPositions))
+            var rankCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.Hint.rank).ToList();
+            if (!rankCardsPositions.SequenceEqual(parsedCommand.Hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceRank(parsedCommand.Hint.Rank, parsedCommand.Hint.CardHandPositions);
+            ((HanabiPlayer)player).DeduceRank(parsedCommand.Hint.rank, parsedCommand.Hint.cardHandPositions);
             return false;
         }
 
