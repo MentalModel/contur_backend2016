@@ -5,22 +5,29 @@ using System.Linq;
 
 namespace Hanabi
 {
+    public enum ActionType { NoAction, StartGame, Play, Drop, ClueRank, ClueSuit }
+
+    public enum Suit { None, Red, Green, Blue, White, Yellow }
+
+    public enum Rank { Zero, One, Two, Three, Four, Five }
+
+    public enum GameStatus { Continue, End }
+
+    public enum CardMoveState { Good, Risky, Bad }
+
     public interface IPlayer
     {
         void AddCard(Card card);
         void AddCards(IEnumerable<Card> cards);
-        int CountCards();
     }
 
     public class HanabiPlayer : IPlayer
     {
         private List<Card> playPile;
-        private IBoard hanabiBoard;
 
-        public HanabiPlayer(IBoard playBoard)
+        public HanabiPlayer()
         {
             playPile = new List<Card>();
-            hanabiBoard = (HanabiBoard)playBoard;
         }
 
         public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
@@ -33,38 +40,23 @@ namespace Hanabi
             return playPile.Where(w => (w.rank == rank)).Select(w => playPile.IndexOf(w));
         }
 
-        public Tuple<Card, bool> PlayCard(int cardHandPosition)
+        public Card PlayCard(int cardHandPosition)
         {
             var card = playPile[cardHandPosition];
             playPile.RemoveAt(cardHandPosition);
 
-            return Tuple.Create(card, IsRiskyTurn(card));
-        }
-
-        private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
-        {
-            foreach (var card in query)
-                if (!hanabiBoard.CardCanPlay(card))
-                    return true;
-            return false;
-        }
-
-        private bool IsRiskyTurn(Card moveCard)
-        {
-            HeldCard card = moveCard as HeldCard;
-            if (card != null)
-            {
-                var query = GetPossibleCardsForTurn(card).ToList();
-                if (NotAllCardsInQueryCanPlay(query))
-                    return false;
-                return true;
-            }
-            return true;
+            return card;
         }
 
         public Card DropCard(int cardHandPosition)
         {
-            return PlayCard(cardHandPosition).Item1;
+            return PlayCard(cardHandPosition);
+        }
+
+        public IEnumerable<Card> GetPossibleCardsForTurn(Card playCard)
+        {
+            HeldCard card = playCard as HeldCard;
+            return (card == null) ? null : card.possibleSuits.SelectMany(rank => card.possibleRanks, (rank, suit) => new Card(rank, suit)).ToList();
         }
 
         public void AddCard(Card card)
@@ -78,98 +70,24 @@ namespace Hanabi
                 AddCard(card);
         }
 
-        public int CountCards()
+        public void UseSuitHint(Hint hint)
         {
-            return playPile.Count();
+            foreach (var index in hint.cardHandPositions)
+                ((HeldCard)playPile[index]).OpenSuit(hint.suit);
+
+            foreach (var index in Enumerable.Range(0, playPile.Count()).Except(hint.cardHandPositions))
+                ((HeldCard)playPile[index]).ExcludeSuit(hint.suit);
         }
 
-        private void OpenNthRank(int index, Rank rank)
+        public void UseRankHint(Hint hint)
         {
-            HeldCard card = playPile[index] as HeldCard;
-            if (card != null)
-                card.OpenRank(rank);
+            foreach (var index in hint.cardHandPositions)
+                ((HeldCard)playPile[index]).OpenRank(hint.rank);
+
+            foreach (var index in Enumerable.Range(0, playPile.Count()).Except(hint.cardHandPositions))
+                ((HeldCard)playPile[index]).ExcludeRank(hint.rank);
         }
 
-        private void CloseNthRank(int index, Rank rank)
-        {
-            HeldCard card = playPile[index] as HeldCard;
-            if (card != null)
-                card.ExcludeRank(rank);
-        }
-
-        private void OpenNthSuit(int index, Suit suitCard)
-        {
-            HeldCard card = playPile[index] as HeldCard;
-            if (card != null)
-                card.OpenSuit(suitCard);
-        }
-
-        private void CloseNthSuit(int index, Suit suitCard)
-        {
-            HeldCard card = playPile[index] as HeldCard;
-            if (card != null)
-                card.ExcludeSuit(suitCard);
-        }
-
-        private IEnumerable<Card> GetDecartusMulti(Card turnCard)
-        {
-            HeldCard card = turnCard as HeldCard;
-            if (card == null)
-                return null;
-
-            return card.possibleSuits.SelectMany(x => card.possibleRanks, (x, y) => new Card(x, y)).ToList();
-        }
-
-        private IEnumerable<Card> GetPossibleCardsForTurn(Card turnCard)
-        {
-            HeldCard card = turnCard as HeldCard;
-            if (card == null)
-                return null;
-
-            var query = new List<Card>();
-            if (card.IsKnownCard())
-                query.Add(card);
-            else
-                query = GetDecartusMulti(card).ToList();
-
-            return query;
-        }
-
-        private void DeduceSuitForMainCards(Suit suit, IEnumerable<int> cardHandPosition)
-        {
-            foreach (var index in cardHandPosition)
-                OpenNthSuit(index, suit);
-        }
-
-        private void DeduceSuitForOtherCards(Suit suit, IEnumerable<int> cardHandPosition)
-        {
-            foreach (var index in cardHandPosition)
-                CloseNthSuit(index, suit);
-        }
-
-        public void DeduceSuit(Suit suit, IEnumerable<int> cardHandPosition)
-        {
-            DeduceSuitForOtherCards(suit, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
-            DeduceSuitForMainCards(suit, cardHandPosition);
-        }
-
-        private void DeduceRankForMainCards(Rank rank, IEnumerable<int> cardHandPosition)
-        {
-            foreach (var index in cardHandPosition)
-                OpenNthRank(index, rank);
-        }
-
-        private void DeduceRankForOtherCards(Rank rank, IEnumerable<int> cardHandPosition)
-        {
-            foreach (var index in cardHandPosition)
-                CloseNthRank(index, rank);
-        }
-
-        public void DeduceRank(Rank rank, IEnumerable<int> cardHandPosition)
-        {
-            DeduceRankForOtherCards(rank, Enumerable.Range(0, playPile.Count()).Except(cardHandPosition));
-            DeduceRankForMainCards(rank, cardHandPosition);
-        }
     }
 
     public class Hint
@@ -411,7 +329,6 @@ namespace Hanabi
 
         private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
 
-
         public Game(int countPlayers)
         {
             this.countPlayers = countPlayers;
@@ -448,12 +365,28 @@ namespace Hanabi
         {
             players = new List<IPlayer>();
             for (var i = 0; i < countPlayers; ++i)
-                players.Add(new HanabiPlayer(hanabiBoard));
+                players.Add(new HanabiPlayer());
         }
 
         private IPlayer GetCurrentPlayer()
         {
             return (HanabiPlayer)players[currentIndexOfPlayer];
+        }
+
+        private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
+        {
+            foreach (var card in query)
+                if (!hanabiBoard.CardCanPlay(card))
+                    return true;
+            return false;
+        }
+
+        private bool IsRiskyTurn(Card card)
+        {
+            var player = GetCurrentPlayer();
+            if (NotAllCardsInQueryCanPlay(((HanabiPlayer)player).GetPossibleCardsForTurn(card).ToList()))
+                return false;
+            return true;
         }
 
         private IPlayer GetNextPlayer()
@@ -496,11 +429,11 @@ namespace Hanabi
             var player = GetCurrentPlayer();
 
             var currentCard = ((HanabiPlayer)player).PlayCard(parsedCommandionType.cardPosition);
-            if (hanabiBoard.CardCanPlay(currentCard.Item1))
+            if (hanabiBoard.CardCanPlay(currentCard))
             {
-                if (!currentCard.Item2)
+                if (!IsRiskyTurn(currentCard))
                     risks++;
-                hanabiBoard.AddCard(currentCard.Item1);
+                hanabiBoard.AddCard(currentCard);
                 UpdateGameParameters();
 
                 return !(CanGiveCardToPlayer((HanabiPlayer)player) && !((HanabiBoard)hanabiBoard).BoardIsFull());
@@ -533,7 +466,7 @@ namespace Hanabi
             if (!suitCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceSuit(parsedCommand.hint.suit, parsedCommand.hint.cardHandPositions);
+            ((HanabiPlayer)player).UseSuitHint(parsedCommand.hint);
             return false;
         }
 
@@ -544,7 +477,7 @@ namespace Hanabi
             if (!rankCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
                 return true;
 
-            ((HanabiPlayer)player).DeduceRank(parsedCommand.hint.rank, parsedCommand.hint.cardHandPositions);
+            ((HanabiPlayer)player).UseRankHint(parsedCommand.hint);
             return false;
         }
 
@@ -594,12 +527,6 @@ namespace Hanabi
             } while (line != null);
         }
     }
-
-    public enum ActionType { NoAction, StartGame, Play, Drop, ClueRank, ClueSuit }
-
-    public enum Suit { None, Red, Green, Blue, White, Yellow }
-
-    public enum Rank { Zero, One, Two, Three, Four, Five }
 
     class Program
     {
