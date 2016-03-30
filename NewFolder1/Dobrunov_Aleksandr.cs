@@ -520,7 +520,6 @@ namespace Hanabi
         public int GetDepth()
         {
             return boardCards
-                .Where(card => card.IsValidRank())
                 .Select(card => card.rank)
                 .Sum(c => (int)c);
         }
@@ -542,28 +541,13 @@ namespace Hanabi
 
     public class Card
     {
-        public Suit suit { get; set; }
-        public Rank rank { get; set; }
+        public readonly Suit suit;
+        public readonly Rank rank;
 
         public Card(Suit suit, Rank rank)
         {
             this.suit = suit;
             this.rank = rank;
-        }
-
-        public bool IsValidSuit()
-        {
-            return (suit != Suit.None);
-        }
-
-        public bool IsValidRank()
-        {
-            return (rank != Rank.Zero);
-        }
-
-        public override string ToString()
-        {
-            return string.Format("{0}{1}", suit.ToString("G")[0], Convert.ToUInt16(rank));
         }
     }
 
