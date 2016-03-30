@@ -16,18 +16,11 @@ namespace Hanabi
     {
         private IPile playPile;
         private IBoard hanabiBoard;
-        private readonly int name;
 
-        public HanabiPlayer(int name, IBoard playBoard)
+        public HanabiPlayer(IBoard playBoard)
         {
-            this.name = name;
             playPile = new Pile();
             hanabiBoard = (HanabiBoard)playBoard;
-        }
-
-        public Card CardAtPosition(int cardHandPosition)
-        {
-            return ((Pile)playPile)[cardHandPosition];
         }
 
         public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
@@ -74,11 +67,6 @@ namespace Hanabi
         public Card DropCard(int cardHandPosition)
         {
             return PlayCard(cardHandPosition).Item1;
-        }
-
-        public int GetName()
-        {
-            return name;
         }
 
         public void AddCard(Card card)
@@ -614,7 +602,7 @@ namespace Hanabi
         {
             players = new List<IPlayer>();
             for (var i = 0; i < countPlayers; ++i)
-                players.Add(new HanabiPlayer(i, hanabiBoard));
+                players.Add(new HanabiPlayer(hanabiBoard));
         }
 
         private IPlayer GetCurrentPlayer()
