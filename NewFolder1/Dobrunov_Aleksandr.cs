@@ -11,9 +11,7 @@ namespace Hanabi
 
     public enum Rank { Zero, One, Two, Three, Four, Five }
 
-    public enum GameStatus { Continue, End }
-
-    public enum CardMoveState { Good, Risky, Bad }
+    public enum GameStatus { Continue, Finish }
 
     public interface IPlayer
     {
@@ -23,12 +21,7 @@ namespace Hanabi
 
     public class HanabiPlayer : IPlayer
     {
-        private List<Card> playPile;
-
-        public HanabiPlayer()
-        {
-            playPile = new List<Card>();
-        }
+        private List<Card> playPile = new List<Card>();
 
         public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
         {
@@ -44,7 +37,6 @@ namespace Hanabi
         {
             var card = playPile[cardHandPosition];
             playPile.RemoveAt(cardHandPosition);
-
             return card;
         }
 
@@ -56,7 +48,7 @@ namespace Hanabi
         public IEnumerable<Card> GetPossibleCardsForTurn(Card playCard)
         {
             HeldCard card = playCard as HeldCard;
-            return (card == null) ? null : card.possibleSuits.SelectMany(rank => card.possibleRanks, (rank, suit) => new Card(rank, suit)).ToList();
+            return (card == null) ? null : card.possibleSuits.SelectMany(rank => card.possibleRanks, (rank, suit) => new Card(rank, suit));
         }
 
         public void AddCard(Card card)
@@ -320,33 +312,20 @@ namespace Hanabi
     {
         private const int CountCardsOnHand = 5;
         private List<Card> deck;
+        IPlayer player;
+        ActionType lastCommand;
         private List<IPlayer> players;
         private IBoard hanabiBoard;
-
         private int currentIndexOfPlayer, risks, cards, score, turn;
-        private bool finished, missInput;
-        private readonly int countPlayers;
 
-        private readonly Dictionary<ActionType, Func<CommandInfo, bool>> optionsInvoker;
-
-        public Game(int countPlayers)
+        public Game(IEnumerable<Card> cards)
         {
-            this.countPlayers = countPlayers;
-            optionsInvoker = CreateDictionaryOptions();
             Init();
-        }
 
-        private Dictionary<ActionType, Func<CommandInfo, bool>> CreateDictionaryOptions()
-        {
-            var dictionary = new Dictionary<ActionType, Func<CommandInfo, bool>>
-            {
-                { ActionType.StartGame, StartNewGame },
-                { ActionType.Play,      ProcessPlay },
-                { ActionType.ClueRank,  ProcessRankHint },
-                { ActionType.ClueSuit,  ProcessSuitHint },
-                { ActionType.Drop,      ProcessDrop }
-            };
-            return dictionary;
+            players[0].AddCards(cards.Take(5));
+            players[1].AddCards(cards.Skip(5).Take(5));
+
+            deck.AddRange(cards.Skip(10));
         }
 
         private void Init()
@@ -355,22 +334,16 @@ namespace Hanabi
             players = new List<IPlayer>();
             AddPlayersToGame();
             deck = new List<Card>();
-            finished = false;
-            missInput = false;
-            cards = score = risks = turn = 0;
+            cards = score = risks;
+            turn = -1;
             currentIndexOfPlayer = 1;
         }
 
         private void AddPlayersToGame()
         {
             players = new List<IPlayer>();
-            for (var i = 0; i < countPlayers; ++i)
+            for (var i = 0; i < 2; ++i)
                 players.Add(new HanabiPlayer());
-        }
-
-        private IPlayer GetCurrentPlayer()
-        {
-            return (HanabiPlayer)players[currentIndexOfPlayer];
         }
 
         private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
@@ -383,148 +356,175 @@ namespace Hanabi
 
         private bool IsRiskyTurn(Card card)
         {
-            var player = GetCurrentPlayer();
             if (NotAllCardsInQueryCanPlay(((HanabiPlayer)player).GetPossibleCardsForTurn(card).ToList()))
-                return false;
-            return true;
+                return true;
+            return false;
         }
 
-        private IPlayer GetNextPlayer()
+        public bool LastCommandWasAClue()
         {
-            return (HanabiPlayer)players[NextPlayer()];
+            return (lastCommand == ActionType.ClueRank) || (lastCommand == ActionType.ClueSuit);
         }
 
-        private void ChangeTurn()
+        public void UpdateGameParameters()
         {
-            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % countPlayers;
+            turn++;
+            if (!LastCommandWasAClue())
+                NextPlayer();
         }
 
-        private int NextPlayer()
+        private void NextPlayer()
         {
-            var value = (currentIndexOfPlayer + 1) % countPlayers;
-            return value;
+            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+            player = players[currentIndexOfPlayer];
         }
 
-        private bool StartNewGame(CommandInfo commandInfo)
-        {
-            Init();
-            var allCards = commandInfo.cards;
+        private bool IsCorrectHint(CommandInfo commandInfo)
+        { 
+            List<int> cardsPositions = null;
+            if (commandInfo.actionType == ActionType.ClueSuit)
+                cardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(commandInfo.hint.suit).ToList();
+            else
+                cardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(commandInfo.hint.rank).ToList();
 
-            players[0].AddCards(allCards.Take(5));
-            players[1].AddCards(allCards.Skip(5).Take(5));
-
-            deck.AddRange(allCards.Skip(10));
+            if (cardsPositions.SequenceEqual(commandInfo.hint.cardHandPositions))
+                return true;
 
             return false;
         }
 
-        private void UpdateGameParameters()
+        private GameStatus ProcessPlay(int cardPosition)
         {
-            score = hanabiBoard.GetScore();
-            cards = hanabiBoard.GetDepth();
-        }
+            var currentCard = ((HanabiPlayer)player).PlayCard(cardPosition);
 
-        private bool ProcessPlay(CommandInfo parsedCommandionType)
-        {
-            var player = GetCurrentPlayer();
-
-            var currentCard = ((HanabiPlayer)player).PlayCard(parsedCommandionType.cardPosition);
-            if (hanabiBoard.CardCanPlay(currentCard))
+            if (NoConflictsAfterPlay(currentCard))
             {
-                if (!IsRiskyTurn(currentCard))
+                if (IsRiskyTurn(currentCard))
                     risks++;
                 hanabiBoard.AddCard(currentCard);
-                UpdateGameParameters();
+                TakeTopDeckCard();
 
-                return !(CanGiveCardToPlayer((HanabiPlayer)player) && !((HanabiBoard)hanabiBoard).BoardIsFull());
+                if (deck.Count == 0)
+                    return GameStatus.Finish;
+                return GameStatus.Continue;
             }
-            return true;
+            return GameStatus.Finish;
         }
 
-        private bool ProcessDrop(CommandInfo parsedCommandionType)
+        private bool NoConflictsAfterPlay(Card card)
         {
-            var player = (HanabiPlayer)GetCurrentPlayer();
-            player.DropCard(parsedCommandionType.cardPosition);
-            return !CanGiveCardToPlayer(player);
+            return deck.Count > 0 && hanabiBoard.CardCanPlay(card);
         }
 
-        private bool CanGiveCardToPlayer(HanabiPlayer player)
+        private void TakeTopDeckCard()
         {
-            if (deck.Count != 0)
+            player.AddCard(deck[0]);
+            deck.RemoveAt(0);
+        }
+
+        private GameStatus ProcessDrop(int cardPosition)
+        {
+            var card = ((HanabiPlayer)player).DropCard(cardPosition);
+            if (NoConflictsAfterDrop(card))
             {
-                player.AddCard(deck[0]);
-                deck.RemoveAt(0);
+                TakeTopDeckCard();
+                return GameStatus.Continue;
             }
-
-            return deck.Count != 0;
+            return GameStatus.Finish;
         }
 
-        private bool ProcessSuitHint(CommandInfo parsedCommand)
+        private bool NoConflictsAfterDrop(Card card)
         {
-            var player = GetNextPlayer();
-            var suitCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(parsedCommand.hint.suit).ToList();
-            if (!suitCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
-                return true;
-
-            ((HanabiPlayer)player).UseSuitHint(parsedCommand.hint);
-            return false;
+            return deck.Count >= 2;
         }
 
-        private bool ProcessRankHint(CommandInfo parsedCommand)
+        private GameStatus ProcessSuitHint(CommandInfo parsedCommand)
         {
-            var player = GetNextPlayer();
-            var rankCardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(parsedCommand.hint.rank).ToList();
-            if (!rankCardsPositions.SequenceEqual(parsedCommand.hint.cardHandPositions))
-                return true;
-
-            ((HanabiPlayer)player).UseRankHint(parsedCommand.hint);
-            return false;
-        }
-
-        private bool ShouldMissCommand(ActionType action)
-        {
-            if (finished && action != ActionType.StartGame)
+            if (IsCorrectHint(parsedCommand))
             {
-                missInput = true;
-                return true;
+                ((HanabiPlayer)player).UseSuitHint(parsedCommand.hint);
+                return GameStatus.Continue;
             }
-            return false;
+            return GameStatus.Finish;
         }
 
-        private bool Execute(CommandInfo parsedInfo)
+        private GameStatus ProcessRankHint(CommandInfo parsedCommand)
         {
-            foreach (var value in optionsInvoker)
+            if (IsCorrectHint(parsedCommand))
             {
-                if (parsedInfo.actionType.Equals(value.Key))
-                {
-                    if (ShouldMissCommand(value.Key))
-                        return true;
-                    return optionsInvoker[value.Key].Invoke(parsedInfo);
-                }
+                ((HanabiPlayer)player).UseRankHint(parsedCommand.hint);
+                return GameStatus.Continue;
             }
-            return false;
+            return GameStatus.Finish;
         }
 
+        public GameStatus Execute(CommandInfo parsedInfo)
+        {
+            lastCommand = parsedInfo.actionType;
+            switch (parsedInfo.actionType)
+            {
+                case ActionType.StartGame:
+                    return GameStatus.Continue;
+
+                case ActionType.Play:
+                    return ProcessPlay(parsedInfo.cardPosition);
+
+                case ActionType.Drop:
+                    return ProcessDrop(parsedInfo.cardPosition);
+
+                case ActionType.ClueRank:
+                    NextPlayer();
+                    return ProcessRankHint(parsedInfo);
+
+                case ActionType.ClueSuit:
+                    NextPlayer();
+                    return ProcessSuitHint(parsedInfo);
+
+                default:
+                    return GameStatus.Finish;
+            }
+        }
+
+        public void PrintStats()
+        {
+            Console.WriteLine("Turn: " + turn + ", cards: " + hanabiBoard.GetDepth() + ", with risk: " + risks);
+        }
+    }
+
+    class Runner
+    {
         public void Run()
         {
             var parser = new Parser();
+            Game game = null;
             string line = null;
+            bool finish = false;
+            GameStatus gameStatus = GameStatus.Finish;
             do
             {
-                turn++;
                 line = Console.ReadLine();
                 if (line == null)
                     break;
+ 
+                var command = parser.Parse(line);
 
-                finished = Execute(parser.Parse(line));
-
-                if (missInput)
+                if (finish && command.actionType != ActionType.StartGame)
                     continue;
 
-                ChangeTurn();
-                if (finished)
-                    Console.WriteLine("Turn: " + turn + ", cards: " + cards + ", with risk: " + risks);
+                if (command.actionType == ActionType.StartGame)
+                    game = new Game(command.cards);
+
+                gameStatus = game.Execute(command);
+                game.UpdateGameParameters();
+                finish = gameStatus != GameStatus.Continue;
+
+                if (gameStatus == GameStatus.Finish)
+                {
+                    game.PrintStats();
+                    finish = true;
+                }
             } while (line != null);
+
         }
     }
 
@@ -532,8 +532,7 @@ namespace Hanabi
     {
         static void Main(string[] args)
         {
-            Game game = new Game(2);
-            game.Run();
+            new Runner().Run();
         }
     }
 }
