@@ -5,7 +5,7 @@ using System.Linq;
 namespace Hanabi
 {
     public enum ActionType  { StartGame, Play, Drop, ClueRank, ClueSuit }
-    public enum Suit        { None, Red, Green, Blue, White, Yellow }
+    public enum Suit        { Red, Green, Blue, White, Yellow }
     public enum Rank        { Zero, One, Two, Three, Four, Five }
     public enum GameStatus  { Continue, Finish }
 
@@ -182,7 +182,7 @@ namespace Hanabi
     public class HanabiBoard : IBoard
     {
         private Card[] boardCards;
-        private const int SuitCount = 5;
+        private const int SuitCount     = 5;
         private const int MaxCardsCount = 25;
 
         public HanabiBoard()
@@ -194,23 +194,18 @@ namespace Hanabi
         private void InitBoard()
         {
             for (var suit = Suit.Red; suit <= Suit.Yellow; ++suit)
-                boardCards[GetIndexFromSuit(suit)] = new Card(suit, Rank.Zero);
-        }
-
-        private int GetIndexFromSuit(Suit suit)
-        {
-            return ((int)suit - 1);
+                boardCards[(int)suit] = new Card(suit, Rank.Zero);
         }
 
         public void AddCard(Card card)
         {
-            boardCards[GetIndexFromSuit(card.suit)] = card;
+            boardCards[(int)card.suit] = card;
         }
 
         public bool CardCanPlay(Card card)
         {
-            var topRank = boardCards[GetIndexFromSuit(card.suit)].rank;
-            return (topRank + 1 == card.rank);
+            var topRank = boardCards[(int)card.suit].rank;
+            return (topRank + 1) == card.rank;
         }
 
         public int GetScore()
@@ -227,7 +222,7 @@ namespace Hanabi
 
         public bool BoardIsFull()
         {
-            return (GetDepth() == MaxCardsCount);
+            return GetDepth() == MaxCardsCount;
         }
     }
 
@@ -252,8 +247,6 @@ namespace Hanabi
         {
             possibleSuits = Enum.GetValues(typeof(Suit)).OfType<Suit>().ToList();
             possibleRanks = Enum.GetValues(typeof(Rank)).OfType<Rank>().ToList();
-
-            possibleSuits.Remove(Suit.None);
             possibleRanks.Remove(Rank.Zero);
         }
 
@@ -283,7 +276,7 @@ namespace Hanabi
 
     public class CardValueParser
     {
-        private const string AllSuits = "NRGBWY";
+        private const string AllSuits = "RGBWY";
 
         public Card Parse(string cardRepresent)
         {
@@ -310,7 +303,8 @@ namespace Hanabi
             deck        = new List<Card>(cards.Skip(CountCardsOnHand * 2));
             this.cards = score = risks;
             turn = -1;
-            currentIndexOfPlayer = 1;
+            currentIndexOfPlayer = 0;
+            lastCommand = ActionType.StartGame;
         }
 
         private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
@@ -424,6 +418,7 @@ namespace Hanabi
 
         public GameStatus Execute(CommandInfo parsedInfo)
         {
+            UpdateGameParameters();
             lastCommand = parsedInfo.actionType;
             switch (parsedInfo.actionType)
             {
@@ -493,9 +488,7 @@ namespace Hanabi
                 if (ShouldStartNewGame(command))
                     game = new Game(command.cards);
 
-                gameStatus = game.Execute(command);
-                game.UpdateGameParameters();
-                
+                gameStatus = game.Execute(command); 
                 ProcessFinishGame();
             }
         }
