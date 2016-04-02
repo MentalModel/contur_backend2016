@@ -178,54 +178,50 @@ namespace Hanabi
     {
         void    AddCard(Card card);
         bool    CardCanPlay(Card card);
-        int     GetScore();
-        int     GetDepth();
+        int     CountCards();
+        bool    BoardIsFull();
     }
 
     public class HanabiBoard : IBoard
     {
-        private Card[] boardCards;
+        private Dictionary<Suit, Stack<Card>> boardCards;
         private const int SuitCount     = 5;
         private const int MaxCardsCount = 25;
 
         public HanabiBoard()
         {
-            boardCards = new Card[SuitCount];
+            boardCards = new Dictionary<Suit, Stack<Card>>();
             InitBoard();
         }
 
         private void InitBoard()
         {
             for (var suit = Suit.Red; suit <= Suit.Yellow; ++suit)
-                boardCards[(int)suit] = new Card(suit, Rank.Zero);
+                boardCards[suit] = new Stack<Card>();
         }
 
         public void AddCard(Card card)
         {
-            boardCards[(int)card.suit] = card;
+            boardCards[card.suit].Push(card);
         }
 
         public bool CardCanPlay(Card card)
         {
-            var topRank = boardCards[(int)card.suit].rank;
+            if (boardCards[card.suit].Count == 0)
+                return (card.rank == Rank.One);
+
+            var topRank = boardCards[card.suit].Peek().rank;
             return (topRank + 1) == card.rank;
         }
 
-        public int GetScore()
+        public int CountCards()
         {
-            return GetDepth();
-        }
-
-        public int GetDepth()
-        {
-            return boardCards
-                .Select(card => card.rank)
-                .Sum(c => (int)c);
+            return boardCards.Select(d => d.Value).Sum(stack => stack.Count);
         }
 
         public bool BoardIsFull()
         {
-            return GetDepth() == MaxCardsCount;
+            return CountCards() == MaxCardsCount;
         }
     }
 
@@ -441,7 +437,7 @@ namespace Hanabi
 
         public void PrintStats()
         {
-            Console.WriteLine("Turn: " + turn + ", cards: " + hanabiBoard.GetDepth() + ", with risk: " + risks);
+            Console.WriteLine("Turn: " + turn + ", cards: " + hanabiBoard.CountCards() + ", with risk: " + risks);
         }
     }
 
