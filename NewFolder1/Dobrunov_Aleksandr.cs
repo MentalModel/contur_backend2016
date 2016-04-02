@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Immutable;
 
 namespace Hanabi
 {
@@ -11,6 +12,8 @@ namespace Hanabi
 
     public interface IPlayer
     {
+        Card PlayCard(int cardHandPosition);
+        Card DropCard(int cardHandPosition);
         void AddCard(Card card);
         void AddCards(IEnumerable<Card> cards);
     }
@@ -289,7 +292,7 @@ namespace Hanabi
     public class Game
     {
         private const int CountCardsOnHand = 5;
-        private List<Card> deck;
+        private Stack<Card> deck;
         IPlayer player;
         ActionType lastCommand;
         private List<IPlayer> players;
@@ -300,7 +303,7 @@ namespace Hanabi
         {
             hanabiBoard = new HanabiBoard();
             players     = new List<IPlayer> { new HanabiPlayer(cards.Take(CountCardsOnHand)), new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand)) };
-            deck        = new List<Card>(cards.Skip(CountCardsOnHand * 2));
+            deck        = new Stack<Card>(cards.Skip(CountCardsOnHand * 2).Reverse());
             this.cards = score = risks;
             turn = -1;
             currentIndexOfPlayer = 0;
@@ -355,12 +358,12 @@ namespace Hanabi
 
         private GameStatus ProcessPlay(int cardPosition)
         {
-            var currentCard = ((HanabiPlayer)player).PlayCard(cardPosition);
+            var currentCard = player.PlayCard(cardPosition);
             if (NoConflictsAfterPlay(currentCard))
             {
                 CheckRisks(currentCard);   
                 hanabiBoard.AddCard(currentCard);
-                TakeTopDeckCard();
+                player.AddCard(deck.Pop());
                 return (deck.Count == 0) ? GameStatus.Finish : GameStatus.Continue;
             }
             return GameStatus.Finish;
@@ -371,18 +374,12 @@ namespace Hanabi
             return (deck.Count > 0) && hanabiBoard.CardCanPlay(card);
         }
 
-        private void TakeTopDeckCard()
-        {
-            player.AddCard(deck[0]);
-            deck.RemoveAt(0);
-        }
-
         private GameStatus ProcessDrop(int cardPosition)
         {
-            var card = ((HanabiPlayer)player).DropCard(cardPosition);
+            var card = player.DropCard(cardPosition);
             if (NoConflictsAfterDrop(card))
             {
-                TakeTopDeckCard();
+                player.AddCard(deck.Pop());
                 return GameStatus.Continue;
             }
             return GameStatus.Finish;
