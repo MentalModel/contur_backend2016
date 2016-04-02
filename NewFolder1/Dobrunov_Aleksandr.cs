@@ -5,10 +5,11 @@ using System.Collections.Immutable;
 
 namespace Hanabi
 {
-    public enum ActionType  { StartGame, Play, Drop, ClueRank, ClueSuit }
+    public enum ActionType  { StartGame, Play, Drop, Clue }
     public enum Suit        { Red, Green, Blue, White, Yellow }
     public enum Rank        { Zero, One, Two, Three, Four, Five }
     public enum GameStatus  { Continue, Finish }
+    public enum HintType    { SuitHint, RankHint, CardHint };
 
     public interface IPlayer
     {
@@ -16,6 +17,7 @@ namespace Hanabi
         Card DropCard(int cardHandPosition);
         void AddCard(Card card);
         void AddCards(IEnumerable<Card> cards);
+        void UseHint(Hint hint);
     }
 
     public class HanabiPlayer : IPlayer
@@ -28,14 +30,9 @@ namespace Hanabi
             AddCards(cards);
         }
 
-        public IEnumerable<int> GetAllPositionsOfSuit(Suit suit)
+        public IEnumerable<Card> GetCards()
         {
-            return playPile.Where(w => (w.suit == suit)).Select(w => playPile.IndexOf(w));
-        }
-
-        public IEnumerable<int> GetAllPositionsOfRank(Rank rank)
-        {
-            return playPile.Where(w => (w.rank == rank)).Select(w => playPile.IndexOf(w));
+            return playPile;
         }
 
         public Card PlayCard(int cardHandPosition)
@@ -67,7 +64,15 @@ namespace Hanabi
                 AddCard(card);
         }
 
-        public void UseSuitHint(Hint hint)
+        public void UseHint(Hint hint)
+        {
+            if (hint.hintType == HintType.RankHint)
+                UseRankHint(hint);
+            else
+                UseSuitHint(hint);
+        }
+
+        private void UseSuitHint(Hint hint)
         {
             foreach (var index in hint.cardHandPositions)
                 ((HanabiCard)playPile[index]).OpenSuit(hint.suit);
@@ -76,7 +81,7 @@ namespace Hanabi
                 ((HanabiCard)playPile[index]).ExcludeSuit(hint.suit);
         }
 
-        public void UseRankHint(Hint hint)
+        private void UseRankHint(Hint hint)
         {
             foreach (var index in hint.cardHandPositions)
                 ((HanabiCard)playPile[index]).OpenRank(hint.rank);
@@ -88,6 +93,7 @@ namespace Hanabi
 
     public class Hint
     {
+        public HintType hintType;
         public  int[]   cardHandPositions;
         public  Rank    rank;
         public  Suit    suit;
@@ -159,13 +165,15 @@ namespace Hanabi
         public CommandInfo ParseSuitHint(string[] tokens)
         {
             var suit = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
-            return new CommandInfo { actionType = ActionType.ClueSuit, hint = new Hint { suit = suit, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
+            return new CommandInfo { actionType = ActionType.Clue,
+                hint = new Hint { suit = suit, hintType = HintType.SuitHint, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
         }
 
         public CommandInfo ParseRankHint(string[] tokens)
         {
             var rank = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
-            return new CommandInfo { actionType = ActionType.ClueRank, hint = new Hint { rank = rank, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
+            return new CommandInfo { actionType = ActionType.Clue,
+                hint = new Hint { rank = rank, hintType = HintType.RankHint, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
         }
 
         public IEnumerable<int> ParseCardPositions(string[] tokens)
@@ -288,6 +296,7 @@ namespace Hanabi
     public class Game
     {
         private const int CountCardsOnHand = 5;
+        private const int MinCountDeckCardsAfterDrop = 2;
         private Stack<Card> deck;
         IPlayer player;
         ActionType lastCommand;
@@ -320,15 +329,10 @@ namespace Hanabi
                 risks++;
         }
 
-        public bool LastCommandWasAClue()
-        {
-            return (lastCommand == ActionType.ClueRank) || (lastCommand == ActionType.ClueSuit);
-        }
-
         public void UpdateGameParameters()
         {
             turn++;
-            if (!LastCommandWasAClue())
+            if (lastCommand != ActionType.Clue)
                 NextPlayer();
         }
 
@@ -338,75 +342,62 @@ namespace Hanabi
             player = players[currentIndexOfPlayer];
         }
 
-        private bool IsCorrectHint(CommandInfo commandInfo)
-        { 
-            List<int> cardsPositions = null;
-            if (commandInfo.actionType == ActionType.ClueSuit)
-                cardsPositions = ((HanabiPlayer)player).GetAllPositionsOfSuit(commandInfo.hint.suit).ToList();
-            else
-                cardsPositions = ((HanabiPlayer)player).GetAllPositionsOfRank(commandInfo.hint.rank).ToList();
+        private bool IsNotCorrectHint(Hint hint)
+        {
+            var cardsPositions = GetIndexesOfCardsWithProperty(hint);
+            if (cardsPositions.SequenceEqual(hint.cardHandPositions))
+                return false;
+            return true;
+        }
 
-            if (cardsPositions.SequenceEqual(commandInfo.hint.cardHandPositions))
-                return true;
+        private IEnumerable<int> GetIndexesOfCardsWithProperty(Hint hint)
+        {
+            var cards = ((HanabiPlayer)player).GetCards().ToList();
+            if (hint.hintType == HintType.SuitHint)
+                return cards.Where(w => (w.suit == hint.suit)).Select(w => cards.IndexOf(w));
 
-            return false;
+           return cards.Where(w => (w.rank == hint.rank)).Select(w => cards.IndexOf(w)).ToList();
         }
 
         private GameStatus ProcessPlay(int cardPosition)
         {
             var currentCard = player.PlayCard(cardPosition);
-            if (NoConflictsAfterPlay(currentCard))
-            {
-                CheckRisks(currentCard);   
-                hanabiBoard.AddCard(currentCard);
-                player.AddCard(deck.Pop());
-                return (deck.Count == 0) ? GameStatus.Finish : GameStatus.Continue;
-            }
-            return GameStatus.Finish;
+            if (HasConflictsAfterPlay(currentCard))
+                return GameStatus.Finish;
+
+            CheckRisks(currentCard);   
+            hanabiBoard.AddCard(currentCard);
+            player.AddCard(deck.Pop());
+            return (deck.Count == 0) ? GameStatus.Finish : GameStatus.Continue;
         }
 
-        private bool NoConflictsAfterPlay(Card card)
+        private bool HasConflictsAfterPlay(Card card)
         {
-            return (deck.Count > 0) && hanabiBoard.CardCanPlay(card);
+            return (deck.Count == 0) || !hanabiBoard.CardCanPlay(card);
         }
 
         private GameStatus ProcessDrop(int cardPosition)
         {
             var card = player.DropCard(cardPosition);
-            if (NoConflictsAfterDrop(card))
-            {
-                player.AddCard(deck.Pop());
-                return GameStatus.Continue;
-            }
-            return GameStatus.Finish;
+            if (HasConflictsAfterDrop(card))
+                return GameStatus.Finish;
+
+            player.AddCard(deck.Pop());
+            return GameStatus.Continue;
         }
 
-        private bool NoConflictsAfterDrop(Card card)
+        private bool HasConflictsAfterDrop(Card card)
         {
-            return deck.Count >= 2;
+            return deck.Count < MinCountDeckCardsAfterDrop;
         }
 
-        public delegate void CardHintDelegate(Hint hint);
-
-        public void UseRankHintDelegate(Hint hint)
+        private GameStatus ProcessHint(Hint hint)
         {
-            ((HanabiPlayer)player).UseRankHint(hint);
-        }
+            if (IsNotCorrectHint(hint))
+                return GameStatus.Finish;
 
-        public void UseSuitHintDelegate(Hint hint)
-        {
-            ((HanabiPlayer)player).UseSuitHint(hint);
-        }
-
-        private GameStatus ProcessHint(CommandInfo parsedCommand, CardHintDelegate Task)
-        {
-            NextPlayer();
-            if (IsCorrectHint(parsedCommand))
-            {
-                Task(parsedCommand.hint);
-                return GameStatus.Continue;
-            }
-            return GameStatus.Finish;
+            player.UseHint(hint);
+            return GameStatus.Continue;
         }
 
         public GameStatus Execute(CommandInfo parsedInfo)
@@ -424,11 +415,9 @@ namespace Hanabi
                 case ActionType.Drop:
                     return ProcessDrop(parsedInfo.cardPosition);
 
-                case ActionType.ClueRank:
-                    return ProcessHint(parsedInfo, UseRankHintDelegate);
-
-                case ActionType.ClueSuit:
-                    return ProcessHint(parsedInfo, UseSuitHintDelegate);
+                case ActionType.Clue:
+                    NextPlayer();
+                    return ProcessHint(parsedInfo.hint);
 
                 default:
                     return GameStatus.Finish;
