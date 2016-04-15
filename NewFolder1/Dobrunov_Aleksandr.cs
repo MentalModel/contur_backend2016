@@ -518,36 +518,36 @@ namespace Hanabi
 
     public class HanabiCard : Card
     {
-        public List<Suit> possibleSuits { get; private set; }
-        public List<Rank> possibleRanks { get; private set; }
+        public ImmutableList<Suit> possibleSuits { get; private set; }
+        public ImmutableList<Rank> possibleRanks { get; private set; }
 
         public HanabiCard(Suit suit, Rank rank) : base(suit, rank)
         {
-            possibleSuits = Enum.GetValues(typeof(Suit)).OfType<Suit>().ToList();
-            possibleRanks = Enum.GetValues(typeof(Rank)).OfType<Rank>().ToList();
-            possibleRanks.Remove(Rank.Zero);
+            possibleSuits = Enum.GetValues(typeof(Suit)).OfType<Suit>().ToImmutableList();
+            possibleRanks = Enum.GetValues(typeof(Rank)).OfType<Rank>().ToImmutableList();
+            possibleRanks = possibleRanks.Remove(Rank.Zero);
         }
 
         public void OpenSuit(Suit suit)
         {
-            possibleSuits.Clear();
-            possibleSuits.Add(suit);
+            possibleSuits = possibleSuits.Clear();
+            possibleSuits = possibleSuits.Add(suit);
         }
 
         public void OpenRank(Rank rank)
         {
-            possibleRanks.Clear();
-            possibleRanks.Add(rank);
+            possibleRanks = possibleRanks.Clear();
+            possibleRanks = possibleRanks.Add(rank);
         }
 
         public void ExcludeSuit(Suit suit)
         {
-            possibleSuits.Remove(suit);
+            possibleSuits = possibleSuits.Remove(suit);
         }
 
         public void ExcludeRank(Rank rank)
         {
-            possibleRanks.Remove(rank);
+            possibleRanks = possibleRanks.Remove(rank);
         }
 
     }
