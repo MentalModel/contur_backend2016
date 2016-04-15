@@ -462,20 +462,21 @@ namespace Hanabi
 
     public class HanabiBoard : IBoard
     {
-        private Dictionary<Suit, Stack<Card>> boardCards;
+        private readonly ImmutableDictionary<Suit, Stack<Card>> boardCards;
         private const int SuitCount     = 5;
         private const int MaxCardsCount = 25;
 
         public HanabiBoard()
         {
-            boardCards = new Dictionary<Suit, Stack<Card>>();
-            InitBoard();
+            boardCards = InitBoard();
         }
 
-        private void InitBoard()
+        private ImmutableDictionary<Suit, Stack<Card>> InitBoard()
         {
+            var board = new Dictionary<Suit, Stack<Card>>();
             for (var suit = Suit.Red; suit <= Suit.Yellow; ++suit)
-                boardCards[suit] = new Stack<Card>();
+                board[suit] = new Stack<Card>();
+            return board.ToImmutableDictionary<Suit, Stack<Card>>();
         }
 
         public void AddCard(Card card)
