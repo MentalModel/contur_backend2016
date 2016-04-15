@@ -264,7 +264,7 @@ namespace TestGameHanabi
                                             new Card(Suit.Green, Rank.Four),  new Card(Suit.Green, Rank.Five)
         };
 
-            var inputCards = expectedOne.Concat(expectedTwo).Concat(expectedDeck);
+            var inputCards = expectedOne.Concat(expectedTwo).Concat(expectedDeck).ToImmutableList();
             var game = new Game(inputCards);
            // CollectionAssert.AreEqual(expectedOne, ((HanabiPlayer)game.players[0]).playPile, new CardComparer());
            // CollectionAssert.AreEqual(expectedTwo, ((HanabiPlayer)game.players[1]).playPile, new CardComparer());
@@ -566,24 +566,24 @@ namespace Hanabi
 
     public class Game
     {
-        private const int CountCardsOnHand = 5;
-        private const int MinCountDeckCardsAfterDrop = 2;
-        public ImmutableStack<Card> deck { get; private set; }
-        IPlayer player;
-        ActionType lastCommand;
-        public  ImmutableList<IPlayer> players { get; private set; }
-        private IBoard hanabiBoard;
+        private const int               CountCardsOnHand = 5;
+        private const int               NumberOfPlayers = 2;
+        private const int               MinCountDeckCardsAfterDrop = 2;
+        private IPlayer                 player;
+        private ActionType              lastCommand;
+        private IBoard                  hanabiBoard;
+        public ImmutableStack<Card>     deck    { get; private set; }
+        public ImmutableList<IPlayer>   players { get; private set; }
         private int currentIndexOfPlayer, risks, cards, score, turn;
 
-        public Game(IEnumerable<Card> cards)
+        public Game(ImmutableList<Card> cards)
         {
             hanabiBoard = new HanabiBoard();
             players     = ImmutableList.Create<IPlayer>(    new HanabiPlayer(cards.Take(CountCardsOnHand).ToImmutableList()),
                                                             new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand).ToImmutableList()) );
             deck        = ImmutableStack.CreateRange<Card>(cards.Skip(CountCardsOnHand * 2).Reverse());
-            this.cards = score = risks;
+            this.cards  = score = risks = currentIndexOfPlayer = 0;
             turn = -1;
-            currentIndexOfPlayer = 0;
             lastCommand = ActionType.StartGame;
         }
 
@@ -610,7 +610,7 @@ namespace Hanabi
 
         private void NextPlayer()
         {
-            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % 2;
+            currentIndexOfPlayer = (currentIndexOfPlayer + 1) % NumberOfPlayers;
             player = players[currentIndexOfPlayer];
         }
 
@@ -652,7 +652,7 @@ namespace Hanabi
 
         private bool HasConflictsAfterPlay(Card card)
         {
-            return (deck.IsEmpty) || !hanabiBoard.CardCanPlay(card);
+            return deck.IsEmpty || !hanabiBoard.CardCanPlay(card);
         }
 
         private GameStatus ProcessDrop(int cardPosition)
@@ -715,17 +715,17 @@ namespace Hanabi
         private Game game               = null;
         private GameStatus gameStatus   = GameStatus.Finish;
 
-        public bool ShouldIgnoreCommand(CommandInfo command)
+        private bool ShouldIgnoreCommand(CommandInfo command)
         {
             return finish && (command.actionType != ActionType.StartGame);
         }
 
-        public bool ShouldStartNewGame(CommandInfo command)
+        private bool ShouldStartNewGame(CommandInfo command)
         {
             return command.actionType == ActionType.StartGame;
         }
 
-        public void ProcessFinishGame()
+        private void ProcessFinishGame()
         {
             finish = gameStatus != GameStatus.Continue;
             if (gameStatus == GameStatus.Finish)
@@ -747,7 +747,7 @@ namespace Hanabi
                     continue;
 
                 if (ShouldStartNewGame(command))
-                    game = new Game(command.cards);
+                    game = new Game(command.cards.ToImmutableList());
 
                 gameStatus = game.Execute(command); 
                 ProcessFinishGame();
@@ -759,8 +759,6 @@ namespace Hanabi
     {
         static void Main(string[] args)
         {
-            //var p = new HanabiPlayer(new[] { new Card(Suit.Blue, Rank.One) });
-            //p.UseHint(new Hint { rank = Rank.One, hintType = HintType.RankHint,  cardHandPositions = new int[] { 0 } });
             new Runner().Run();
         }
     }
