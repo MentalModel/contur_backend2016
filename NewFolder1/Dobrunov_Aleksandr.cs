@@ -556,10 +556,10 @@ namespace Hanabi
     {
         private const string AllSuits = "RGBWY";
 
-        public Card Parse(string cardRepresent)
+        public Card Parse(string cardRepresentation)
         {
-            var suit = (Suit)Enum.Parse(typeof(Suit), AllSuits.IndexOf(cardRepresent[0]).ToString());
-            var rank = (Rank)Enum.Parse(typeof(Rank), cardRepresent[1].ToString());
+            var suit = (Suit)Enum.Parse(typeof(Suit), AllSuits.IndexOf(cardRepresentation[0]).ToString());
+            var rank = (Rank)Enum.Parse(typeof(Rank), cardRepresentation[1].ToString());
             return new Card(suit, rank);
         }
     }
@@ -568,19 +568,19 @@ namespace Hanabi
     {
         private const int CountCardsOnHand = 5;
         private const int MinCountDeckCardsAfterDrop = 2;
-        public Stack<Card> deck { get; private set; }
+        public ImmutableStack<Card> deck { get; private set; }
         IPlayer player;
         ActionType lastCommand;
-        public  List<IPlayer> players { get; private set; }
+        public  ImmutableList<IPlayer> players { get; private set; }
         private IBoard hanabiBoard;
         private int currentIndexOfPlayer, risks, cards, score, turn;
 
         public Game(IEnumerable<Card> cards)
         {
             hanabiBoard = new HanabiBoard();
-            players     = new List<IPlayer> {   new HanabiPlayer(cards.Take(CountCardsOnHand).ToImmutableList()),
-                                                new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand).ToImmutableList()) };
-            deck        = new Stack<Card>(cards.Skip(CountCardsOnHand * 2).Reverse());
+            players     = ImmutableList.Create<IPlayer>(    new HanabiPlayer(cards.Take(CountCardsOnHand).ToImmutableList()),
+                                                            new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand).ToImmutableList()) );
+            deck        = ImmutableStack.CreateRange<Card>(cards.Skip(CountCardsOnHand * 2).Reverse());
             this.cards = score = risks;
             turn = -1;
             currentIndexOfPlayer = 0;
@@ -631,6 +631,13 @@ namespace Hanabi
            return cards.Where(w => (w.rank == hint.rank)).Select(w => cards.IndexOf(w)).ToList();
         }
 
+        private Card CardFromDeck()
+        {
+            var card = deck.Peek();
+            deck = deck.Pop();
+            return card;
+        }
+
         private GameStatus ProcessPlay(int cardPosition)
         {
             var currentCard = player.PlayCard(cardPosition);
@@ -639,13 +646,13 @@ namespace Hanabi
 
             CheckRisks(currentCard);   
             hanabiBoard.AddCard(currentCard);
-            player.AddCard(deck.Pop());
-            return (deck.Count == 0) ? GameStatus.Finish : GameStatus.Continue;
+            player.AddCard(CardFromDeck());
+            return (deck.IsEmpty) ? GameStatus.Finish : GameStatus.Continue;
         }
 
         private bool HasConflictsAfterPlay(Card card)
         {
-            return (deck.Count == 0) || !hanabiBoard.CardCanPlay(card);
+            return (deck.IsEmpty) || !hanabiBoard.CardCanPlay(card);
         }
 
         private GameStatus ProcessDrop(int cardPosition)
@@ -654,13 +661,13 @@ namespace Hanabi
             if (HasConflictsAfterDrop(card))
                 return GameStatus.Finish;
 
-            player.AddCard(deck.Pop());
+            player.AddCard(CardFromDeck());
             return GameStatus.Continue;
         }
 
         private bool HasConflictsAfterDrop(Card card)
         {
-            return deck.Count < MinCountDeckCardsAfterDrop;
+            return deck.ToImmutableList().Count < MinCountDeckCardsAfterDrop;
         }
 
         private GameStatus ProcessHint(Hint hint)
