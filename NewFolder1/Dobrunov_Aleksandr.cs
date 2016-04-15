@@ -3,6 +3,276 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Collections.Immutable;
 
+namespace TestGameHanabi
+{
+    using Hanabi;
+    using NUnit.Framework;
+
+    [TestFixture]
+    public class HanabiBoardTester
+    {
+        public IEnumerable<Card> GenerateAllCards()
+        {
+            for (Suit suit = Suit.Red; suit <= Suit.Yellow; ++suit)
+                for (Rank rank = Rank.One; rank <= Rank.Five; ++rank)
+                    yield return new Card(suit, rank);
+        }
+
+        public HanabiBoard GetFullBoard()
+        {
+            var board = new HanabiBoard();
+            foreach (var card in GenerateAllCards())
+                board.AddCard(card);
+            return board;
+        }
+
+        public IEnumerable<Card> GetCardsWithSuitStartAtRank(Suit suit, Rank rank)
+        {
+            for (var rankOfCard = rank; rankOfCard <= Rank.Five; ++rankOfCard)
+                yield return new Card(suit, rankOfCard);
+        }
+
+        public IEnumerable<Card> GetCardsWithSuitEndAtRank(Suit suit, Rank rank)
+        {
+            for (var rankOfCard = Rank.One; rankOfCard <= rank; ++rankOfCard)
+                yield return new Card(suit, rankOfCard);
+        }
+
+        public HanabiBoard GetBoardWithSuitCardsUpToRank(Suit suit, Rank rank)
+        {
+            var board = new HanabiBoard();
+            foreach (var card in GetCardsWithSuitEndAtRank(suit, rank))
+                board.AddCard(card);
+            return board;
+        }
+
+        [Test]
+        public void TestFullBoard()
+        {
+            var board = GetFullBoard();
+            Assert.AreEqual(board.BoardIsFull(), true);
+        }
+
+        [Test]
+        public void TestCountCards()
+        {
+            var board = GetFullBoard();
+            Assert.AreEqual(board.CountCards(), 25);
+        }
+
+        public void TestCardNextPlay(Suit suit, Rank rank)
+        {
+            var board = GetBoardWithSuitCardsUpToRank(suit, rank);
+            Assert.AreEqual(board.CardCanPlay(new Card(suit, rank + 1)), true);
+
+            for (var r = rank + 2; r <= Rank.Five; ++r)
+                Assert.AreEqual(board.CardCanPlay(new Card(suit, r)), false);
+        }
+
+        [Test]
+        public void TestRedCardNextPlay()
+        {
+            TestCardNextPlay(Suit.Red, Rank.One);
+            TestCardNextPlay(Suit.Red, Rank.Two);
+            TestCardNextPlay(Suit.Red, Rank.Three);
+            TestCardNextPlay(Suit.Red, Rank.Four);
+            TestCardNextPlay(Suit.Red, Rank.Five);
+        }
+
+        [Test]
+        public void TestGreenCardNextPlay()
+        {
+            TestCardNextPlay(Suit.Green, Rank.One);
+            TestCardNextPlay(Suit.Green, Rank.Two);
+            TestCardNextPlay(Suit.Green, Rank.Three);
+            TestCardNextPlay(Suit.Green, Rank.Four);
+            TestCardNextPlay(Suit.Green, Rank.Five);
+        }
+
+        [Test]
+        public void TestYellowCardNextPlay()
+        {
+            TestCardNextPlay(Suit.Yellow, Rank.One);
+            TestCardNextPlay(Suit.Yellow, Rank.Two);
+            TestCardNextPlay(Suit.Yellow, Rank.Three);
+            TestCardNextPlay(Suit.Yellow, Rank.Four);
+            TestCardNextPlay(Suit.Yellow, Rank.Five);
+        }
+
+        [Test]
+        public void TestBlueCardNextPlay()
+        {
+            TestCardNextPlay(Suit.Blue, Rank.One);
+            TestCardNextPlay(Suit.Blue, Rank.Two);
+            TestCardNextPlay(Suit.Blue, Rank.Three);
+            TestCardNextPlay(Suit.Blue, Rank.Four);
+            TestCardNextPlay(Suit.Blue, Rank.Five);
+        }
+
+        [Test]
+        public void TestWhiteCardNextPlay()
+        {
+            TestCardNextPlay(Suit.White, Rank.One);
+            TestCardNextPlay(Suit.White, Rank.Two);
+            TestCardNextPlay(Suit.White, Rank.Three);
+            TestCardNextPlay(Suit.White, Rank.Four);
+            TestCardNextPlay(Suit.White, Rank.Five);
+        }
+
+    }
+
+    public class CardRankComparer : Comparer<Card>
+    {
+        public override int Compare(Card first, Card second)
+        {
+            return first.rank.CompareTo(second.rank);
+        }
+    }
+
+    public class CardSuitComparer : Comparer<Card>
+    {
+        public override int Compare(Card first, Card second)
+        {
+            return first.suit.CompareTo(second.suit);
+        }
+    }
+
+    public class CardComparer : Comparer<Card>
+    {
+        public override int Compare(Card first, Card second)
+        {
+            if (first.suit != second.suit)
+                return -1;
+
+            if (first.rank < second.rank)
+                return -1;
+
+            else if (first.rank > second.rank)
+                return 1;
+
+            return 0;
+        }
+    }
+
+    [TestFixture]
+    public class ParserTester
+    {
+        [Test]
+        public void TestParseNewGame()
+        {
+            var command = new Parser().Parse("Start new game with deck R1 R2 R3 R4 R5 R1 R2 R3 R4 R5 R1 R2");
+
+            var cards = new List<Card>();
+            for (var i = 0; i < 2; ++i)
+                for (var rank = Rank.One; rank <= Rank.Five; ++rank)
+                    cards.Add(new Card(Suit.Red, rank));
+
+            cards.Add(new Card(Suit.Red, Rank.One));
+            cards.Add(new Card(Suit.Red, Rank.Two));
+
+            CollectionAssert.AreEqual(cards, command.cards, new CardRankComparer());
+            Assert.AreEqual(ActionType.StartGame, command.actionType);
+        }
+
+        public void TestParsePlayCardNo(int index)
+        {
+            var command = new Parser().Parse("Play card " + index.ToString());
+            Assert.AreEqual(index, command.cardPosition);
+            Assert.AreEqual(ActionType.Play, command.actionType);
+        }
+
+        public void TestParseDropCardNo(int index)
+        {
+            var command = new Parser().Parse("Drop card " + index.ToString());
+            Assert.AreEqual(index, command.cardPosition);
+            Assert.AreEqual(ActionType.Drop, command.actionType);
+        }
+
+        public void TestParseSuitHint(Suit suit, int[] position)
+        {
+            string[] colors = { "Red", "Green", "Blue", "White", "Yellow" };
+            var command = new Parser().Parse("Tell color " + colors[(int)suit] + " for cards " + string.Join(" ", position));
+
+            Assert.AreEqual(suit, command.hint.suit);
+            Assert.AreEqual(position, command.hint.cardHandPositions);
+            Assert.AreEqual(ActionType.Clue, command.actionType);
+        }
+
+        public void TestParseRankHint(Rank rank, int[] position)
+        {
+            var command = new Parser().Parse("Tell rank " + (int)rank + " for cards " + string.Join(" ", position));
+
+            Assert.AreEqual(rank, command.hint.rank);
+            Assert.AreEqual(position, command.hint.cardHandPositions);
+            Assert.AreEqual(ActionType.Clue, command.actionType);
+        }
+
+        [Test]
+        public void TestParseRankHintWithPosition()
+        {
+            TestParseRankHint(Rank.One, new int[] { 1 });
+            TestParseRankHint(Rank.Two, new int[] { 2, 3, 4 });
+            TestParseRankHint(Rank.Three, new int[] { 3, 4 });
+            TestParseRankHint(Rank.Four, new int[] { 1, 2, 3, 4 });
+            TestParseRankHint(Rank.One, new int[] { 2, 3 });
+        }
+
+        [Test]
+        public void TestParseSuitHintWithPosition()
+        {
+            TestParseSuitHint(Suit.Red, new int[] { 1, 2, 3 });
+            TestParseSuitHint(Suit.Green, new int[] { 2, 4 });
+            TestParseSuitHint(Suit.Blue, new int[] { 3, 4 });
+            TestParseSuitHint(Suit.White, new int[] { 4 });
+            TestParseSuitHint(Suit.Yellow, new int[] { 2, 3, 4 });
+        }
+
+        [Test]
+        public void TestParsePlayCard()
+        {
+            foreach (int index in Enumerable.Range(0, 4))
+                TestParsePlayCardNo(index);
+        }
+
+        [Test]
+        public void TestParseDropCard()
+        {
+            foreach (int index in Enumerable.Range(0, 4))
+                TestParseDropCardNo(index);
+        }
+
+    }
+
+    [TestFixture]
+    public class GameTester
+    {
+        [Test]
+        public void TestRightInitialization()
+        {
+            Card[] expectedOne = new[] {   new Card(Suit.Red, Rank.One),   new Card(Suit.Red, Rank.Two),
+                                        new Card(Suit.Red, Rank.Three),
+                                        new Card(Suit.Red, Rank.Four),  new Card(Suit.Red, Rank.Five)
+        };
+
+            Card[] expectedTwo = new[] {    new Card(Suit.Green, Rank.One),   new Card(Suit.Green, Rank.Two),
+                                        new Card(Suit.Green, Rank.Three),
+                                        new Card(Suit.Green, Rank.Four),  new Card(Suit.Green, Rank.Five)
+        };
+
+            Card[] expectedDeck = new[] {       new Card(Suit.Green, Rank.One),   new Card(Suit.Green, Rank.Two),
+                                            new Card(Suit.Green, Rank.Three),
+                                            new Card(Suit.Green, Rank.Four),  new Card(Suit.Green, Rank.Five)
+        };
+
+            var inputCards = expectedOne.Concat(expectedTwo).Concat(expectedDeck);
+            var game = new Game(inputCards);
+            CollectionAssert.AreEqual(expectedOne, ((HanabiPlayer)game.players[0]).playPile, new CardComparer());
+            CollectionAssert.AreEqual(expectedTwo, ((HanabiPlayer)game.players[1]).playPile, new CardComparer());
+            CollectionAssert.AreEqual(expectedDeck, game.deck, new CardComparer());
+        }
+    }
+}
+
 namespace Hanabi
 {
     public enum ActionType  { StartGame, Play, Drop, Clue }
@@ -22,7 +292,8 @@ namespace Hanabi
 
     public class HanabiPlayer : IPlayer
     {
-        private List<Card> playPile;
+        public List<Card> playPile { get; private set; }
+
 
         public HanabiPlayer(IEnumerable<Card> cards)
         {
@@ -297,17 +568,18 @@ namespace Hanabi
     {
         private const int CountCardsOnHand = 5;
         private const int MinCountDeckCardsAfterDrop = 2;
-        private Stack<Card> deck;
+        public Stack<Card> deck { get; private set; }
         IPlayer player;
         ActionType lastCommand;
-        private List<IPlayer> players;
+        public  List<IPlayer> players { get; private set; }
         private IBoard hanabiBoard;
         private int currentIndexOfPlayer, risks, cards, score, turn;
 
         public Game(IEnumerable<Card> cards)
         {
             hanabiBoard = new HanabiBoard();
-            players     = new List<IPlayer> { new HanabiPlayer(cards.Take(CountCardsOnHand)), new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand)) };
+            players     = new List<IPlayer> {   new HanabiPlayer(cards.Take(CountCardsOnHand)),
+                                                new HanabiPlayer(cards.Skip(CountCardsOnHand).Take(CountCardsOnHand)) };
             deck        = new Stack<Card>(cards.Skip(CountCardsOnHand * 2).Reverse());
             this.cards = score = risks;
             turn = -1;
@@ -416,7 +688,7 @@ namespace Hanabi
                     return ProcessDrop(parsedInfo.cardPosition);
 
                 case ActionType.Clue:
-                    NextPlayer();
+                    NextPlayer();               // because hint executes on the opponent
                     return ProcessHint(parsedInfo.hint);
 
                 default:
