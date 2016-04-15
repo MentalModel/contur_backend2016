@@ -266,8 +266,8 @@ namespace TestGameHanabi
 
             var inputCards = expectedOne.Concat(expectedTwo).Concat(expectedDeck).ToImmutableList();
             var game = new Game(inputCards);
-           // CollectionAssert.AreEqual(expectedOne, ((HanabiPlayer)game.players[0]).playPile, new CardComparer());
-           // CollectionAssert.AreEqual(expectedTwo, ((HanabiPlayer)game.players[1]).playPile, new CardComparer());
+            CollectionAssert.AreEqual(expectedOne, ((HanabiPlayer)game.players[0]).GetCards(), new CardComparer());
+            CollectionAssert.AreEqual(expectedTwo, ((HanabiPlayer)game.players[1]).GetCards(), new CardComparer());
             CollectionAssert.AreEqual(expectedDeck, game.deck, new CardComparer());
         }
     }
@@ -292,7 +292,7 @@ namespace Hanabi
 
     public class HanabiPlayer : IPlayer
     {
-        private ImmutableList<Card> playPile;// { get; private set; }
+        private ImmutableList<Card> playPile;
 
         public HanabiPlayer(ImmutableList<Card> cards)
         {
@@ -374,7 +374,7 @@ namespace Hanabi
         public  int         cardPosition;
         public  ActionType  actionType;
         public  Hint        hint;
-        public  List<Card>  cards;
+        public  ImmutableList<Card>  cards;
     }
 
     public interface IParser
@@ -419,7 +419,7 @@ namespace Hanabi
         public CommandInfo ParseStartNewGame(string[] tokens)
         {
             var cards = tokens.Skip(MissNonCards).Select(card => new CardValueParser().Parse(card));
-            return new CommandInfo { cards = cards.ToList(), actionType = ActionType.StartGame };
+            return new CommandInfo { cards = cards.ToImmutableList(), actionType = ActionType.StartGame };
         }
 
         public CommandInfo ParsePlay(string[] tokens)
@@ -566,9 +566,9 @@ namespace Hanabi
 
     public class Game
     {
-        private const int               CountCardsOnHand = 5;
-        private const int               NumberOfPlayers = 2;
-        private const int               MinCountDeckCardsAfterDrop = 2;
+        private const int               CountCardsOnHand            = 5;
+        private const int               NumberOfPlayers             = 2;
+        private const int               MinCountDeckCardsAfterDrop  = 2;
         private IPlayer                 player;
         private ActionType              lastCommand;
         private IBoard                  hanabiBoard;
@@ -587,7 +587,7 @@ namespace Hanabi
             lastCommand = ActionType.StartGame;
         }
 
-        private bool NotAllCardsInQueryCanPlay(IEnumerable<Card> query)
+        private bool NotAllCardsInQueryCanPlay(ImmutableList<Card> query)
         {
             foreach (var card in query)
                 if (!hanabiBoard.CardCanPlay(card))
@@ -597,7 +597,7 @@ namespace Hanabi
 
         private void CheckRisks(Card card)
         {
-            if (NotAllCardsInQueryCanPlay(((HanabiPlayer)player).GetPossibleCardsForTurn(card).ToList()))
+            if (NotAllCardsInQueryCanPlay(((HanabiPlayer)player).GetPossibleCardsForTurn(card).ToImmutableList()))
                 risks++;
         }
 
@@ -695,7 +695,7 @@ namespace Hanabi
                     return ProcessDrop(parsedInfo.cardPosition);
 
                 case ActionType.Clue:
-                    NextPlayer();               // because hint executes on the opponent
+                    NextPlayer();                                   // because hint executes on the opponent
                     return ProcessHint(parsedInfo.hint);
 
                 default:
