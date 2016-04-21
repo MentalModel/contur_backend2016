@@ -249,19 +249,25 @@ namespace TestGameHanabi
         [Test]
         public void TestRightInitialization()
         {
-            Card[] expectedOne = new[] {   new Card(Suit.Red, Rank.One),   new Card(Suit.Red, Rank.Two),
-                                        new Card(Suit.Red, Rank.Three),
-                                        new Card(Suit.Red, Rank.Four),  new Card(Suit.Red, Rank.Five)
+            Card[] expectedOne = new[] {    new Card(Suit.Red, Rank.One),
+                                            new Card(Suit.Red, Rank.Two),
+                                            new Card(Suit.Red, Rank.Three),
+                                            new Card(Suit.Red, Rank.Four),
+                                            new Card(Suit.Red, Rank.Five)
         };
 
-            Card[] expectedTwo = new[] {    new Card(Suit.Green, Rank.One),   new Card(Suit.Green, Rank.Two),
-                                        new Card(Suit.Green, Rank.Three),
-                                        new Card(Suit.Green, Rank.Four),  new Card(Suit.Green, Rank.Five)
-        };
-
-            Card[] expectedDeck = new[] {       new Card(Suit.Green, Rank.One),   new Card(Suit.Green, Rank.Two),
+            Card[] expectedTwo = new[] {    new Card(Suit.Green, Rank.One),
+                                            new Card(Suit.Green, Rank.Two),
                                             new Card(Suit.Green, Rank.Three),
-                                            new Card(Suit.Green, Rank.Four),  new Card(Suit.Green, Rank.Five)
+                                            new Card(Suit.Green, Rank.Four),
+                                            new Card(Suit.Green, Rank.Five)
+        };
+
+            Card[] expectedDeck = new[] {   new Card(Suit.Green, Rank.One),
+                                            new Card(Suit.Green, Rank.Two),
+                                            new Card(Suit.Green, Rank.Three),
+                                            new Card(Suit.Green, Rank.Four),
+                                            new Card(Suit.Green, Rank.Five)
         };
 
             var inputCards = expectedOne.Concat(expectedTwo).Concat(expectedDeck).ToImmutableList();
@@ -364,7 +370,7 @@ namespace Hanabi
     public class Hint
     {
         public HintType hintType;
-        public  int[]   cardHandPositions;
+        public  ImmutableArray<int>   cardHandPositions;
         public  Rank    rank;
         public  Suit    suit;
     }
@@ -436,14 +442,14 @@ namespace Hanabi
         {
             var suit = (Suit)Enum.Parse(typeof(Suit), tokens[2]);
             return new CommandInfo { actionType = ActionType.Clue,
-                hint = new Hint { suit = suit, hintType = HintType.SuitHint, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
+                hint = new Hint { suit = suit, hintType = HintType.SuitHint, cardHandPositions = ParseCardPositions(tokens).ToImmutableArray() } };
         }
 
         public CommandInfo ParseRankHint(string[] tokens)
         {
             var rank = (Rank)Enum.Parse(typeof(Rank), tokens[2]);
             return new CommandInfo { actionType = ActionType.Clue,
-                hint = new Hint { rank = rank, hintType = HintType.RankHint, cardHandPositions = ParseCardPositions(tokens).ToArray() } };
+                hint = new Hint { rank = rank, hintType = HintType.RankHint, cardHandPositions = ParseCardPositions(tokens).ToImmutableArray() } };
         }
 
         public IEnumerable<int> ParseCardPositions(string[] tokens)
@@ -633,8 +639,8 @@ namespace Hanabi
 
         private Card CardFromDeck()
         {
-            var card = deck.Peek();
-            deck = deck.Pop();
+            var card    = deck.Peek();
+            deck        = deck.Pop();
             return card;
         }
 
@@ -749,7 +755,7 @@ namespace Hanabi
                 if (ShouldStartNewGame(command))
                     game = new Game(command.cards.ToImmutableList());
 
-                gameStatus = game.Execute(command); 
+                gameStatus = game.Execute(command);
                 ProcessFinishGame();
             }
         }
